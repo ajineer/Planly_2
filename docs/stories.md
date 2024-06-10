@@ -1,7 +1,7 @@
 # Welcom page
 
-- [] User arrives at the landing page
-- [] User has the option to sign up or login
+- [ ] User arrives at the landing page
+- [ ] User has the option to sign up or login
 
 # sign up page
 
