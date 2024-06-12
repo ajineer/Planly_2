@@ -3,7 +3,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import asyncHandler from "express-async-handler";
 
-const login = asyncHandler(async (req, res) => {
+export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({ message: "All fields are required" });
@@ -24,15 +24,15 @@ const login = asyncHandler(async (req, res) => {
   const accessToken = jwt.sign(
     {
       UserInfo: {
-        username: foundUser.username,
+        username: foundUser.email,
       },
     },
-    process.env.ACCESSTOKEN_SECRET,
+    process.env.ACCESS_TOKEN_SECRET,
     { expiresIn: "15m" }
   );
 
   const refreshToken = jwt.sign(
-    { username: foundUser.username },
+    { username: foundUser.email },
     process.env.REFRESH_TOKEN_SECRET,
     { expiresIn: "7d" }
   );
@@ -40,14 +40,14 @@ const login = asyncHandler(async (req, res) => {
   res.cookie("jwt", refreshToken, {
     httpOnly: true,
     secure: true,
-    sameSites: "None",
-    maxAge: 7,
+    sameSite: "None",
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
   });
 
   res.json({ accessToken });
 });
 
-const refresh = (req, res) => {
+export const refresh = (req, res) => {
   const cookies = req.cookies;
 
   if (!cookies?.jwt) {
@@ -58,13 +58,34 @@ const refresh = (req, res) => {
 
   jwt.verify(
     refreshToken,
-    process.env.REFESH_TOKEN_SECRET,
+    process.env.REFRESH_TOKEN_SECRET,
     asyncHandler(async (err, decoded) => {
       if (err) return res.status(403).json({ message: "Forbidden" });
 
       const foundUser = await User.findOne({
-        username: decoded.username,
+        email: decoded.email,
       }).exec();
+
+      if (!foundUser) return res.status(401).json({ message: "Unauthorized" });
+
+      const accessToken = jwt.sign(
+        {
+          UserInfo: {
+            email: foundUser.email,
+          },
+        },
+        process.env.ACCESS_TOKEN_SECRET,
+        { expiresIn: "15m" }
+      );
+
+      res.json({ accessToken });
     })
   );
+};
+
+export const logout = (req, res) => {
+  const cookies = req.cookies;
+  if (!cookies?.jwt) return res.sendStatus(204);
+  res.clearCookie("jwt", { httpOnly: true, sameSite: "None", secure: true });
+  res.json({ message: "Cookie cleared" });
 };
