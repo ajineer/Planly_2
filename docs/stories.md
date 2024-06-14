@@ -4,12 +4,12 @@
 
 # Calendar UI
 
-- User can choose view (day, week, month)
-- User can navigate days/weeks/months with arrow selectors
-- User can select today button to go to current day
-- User can select day from drop down calendar in header bar
-- User can select their profile icon to logout
-- User can select three dot menu top left to open side panel
+- [ ] User can choose view (day, week, month)
+- [ ] User can navigate days/weeks/months with arrow selectors
+- [ ] User can select today button to go to current day
+- [ ] User can select day from drop down calendar in header bar
+- [ ] User can select their profile icon to logout
+- [ ] User can select three dot menu top left to open side panel
 
 - ## Calendars
 
