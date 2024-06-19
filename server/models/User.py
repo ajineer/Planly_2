@@ -7,11 +7,19 @@ from config import db, bcrypt
 class User(db.Model, SerializerMixin):
     __table__ = "users"
     serialize_rules = ("-_password_hash",)
+
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String, nullable=False)
     last_name = db.Column(db.String, nullable=False)
     email = db.Column(db.String, nullable=False)
     _password_hash = db.Column(db.String)
+
+    calendars = db.relationship(
+        "Calendar", back_populates="user", cascade="all, delete, delete-orphan"
+    )
+    invites = db.relationship(
+        "Invites", back_populates="user", cascade="all, delete, delete-orphan"
+    )
 
     @hybrid_property
     def password_hash(self):
