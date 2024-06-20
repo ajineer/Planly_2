@@ -5,10 +5,16 @@ from config import db, bcrypt
 
 
 class User(db.Model, SerializerMixin):
-    __table__ = "users"
-    serialize_rules = ("-_password_hash",)
+    __tablename__ = "users"
+    serialize_rules = (
+        "-_password_hash",
+        "-participant",
+    )
 
     id = db.Column(db.Integer, primary_key=True)
+    participant_id = db.Column(
+        db.Integer, db.ForeignKey("participants.id", ondelete="CASCADE")
+    )
     first_name = db.Column(db.String, nullable=False)
     last_name = db.Column(db.String, nullable=False)
     email = db.Column(db.String, nullable=False)
@@ -20,6 +26,8 @@ class User(db.Model, SerializerMixin):
     invites = db.relationship(
         "Invites", back_populates="user", cascade="all, delete, delete-orphan"
     )
+
+    participant = db.relationship("Participant", back_populates="users")
 
     @hybrid_property
     def password_hash(self):
@@ -33,7 +41,7 @@ class User(db.Model, SerializerMixin):
     def authenticate(self, password):
         return bcrypt.check_password_hash(self._password_hash, password.encode("utf-8"))
 
-    @validate("email")
+    @validates("email")
     def validate_email(self, key, email):
         if not email or not isinstance(email, str):
             raise ValueError("Email must be a non-empty string.")
