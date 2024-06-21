@@ -1,12 +1,11 @@
 from flask import request, session
 from flask_restful import Resource
-from sqlalchemy.exc import IntegrityError
 
 # Local imports
-from config import app, db, api
+from ..config import db
 
 # Add your model imports
-from models import User
+from ..models import User
 
 
 class Signup(Resource):
@@ -17,7 +16,9 @@ class Signup(Resource):
         last_name = request.get_json().get("last_name")
         password = request.get_json().get("password")
 
-        if email and password and not User.query.filter(User.email == email).first():
+        user = User.query.filter(User.email == email).first()
+
+        if email and password and not user:
             new_user = User(
                 first_name=first_name,
                 last_name=last_name,

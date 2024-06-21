@@ -1,20 +1,22 @@
 from sqlalchemy.orm import validates
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_serializer import SerializerMixin
-from config import db, bcrypt
+from ..config import db, bcrypt
+from .Participant import particpants
 
 
 class User(db.Model, SerializerMixin):
     __tablename__ = "users"
-    serialize_rules = (
-        "-_password_hash",
-        "-participant",
-    )
+
+    serialize_rules = ("-_password_hash",)
 
     id = db.Column(db.Integer, primary_key=True)
-    participant_id = db.Column(
-        db.Integer, db.ForeignKey("participants.id", ondelete="CASCADE")
-    )
+    # participant_id = db.Column(
+    #     db.Integer,
+    #     db.ForeignKey("participants.id", ondelete="CASCADE"),
+    #     nullable=True,
+    # )
+
     first_name = db.Column(db.String, nullable=False)
     last_name = db.Column(db.String, nullable=False)
     email = db.Column(db.String, nullable=False)
@@ -24,10 +26,12 @@ class User(db.Model, SerializerMixin):
         "Calendar", back_populates="user", cascade="all, delete, delete-orphan"
     )
     invites = db.relationship(
-        "Invites", back_populates="user", cascade="all, delete, delete-orphan"
+        "Invite", back_populates="user", cascade="all, delete, delete-orphan"
     )
 
-    participant = db.relationship("Participant", back_populates="users")
+    calendars = db.relationship(
+        "Calendar", secondary=particpants, back_populates="users"
+    )
 
     @hybrid_property
     def password_hash(self):

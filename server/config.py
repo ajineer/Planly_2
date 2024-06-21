@@ -18,9 +18,19 @@ metadata = MetaData(
     }
 )
 
-db = SQLAlchemy(metadata=metadata)
-migrate = Migrate(app, db)
-db.init_app(app)
 bcrypt = Bcrypt(app)
 api = Api(app)
 CORS(app)
+db = SQLAlchemy(metadata=metadata)
+db.init_app(app)
+migrate = Migrate(app, db)
+
+with app.app_context():
+    from .models.User import User
+    from .models.Participant import particpants
+    from .models.Calendar import Calendar
+    from .models.Invite import Invite
+    from .models.Task import Task
+    from .models.Event import Event
+
+    db.create_all()

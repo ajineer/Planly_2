@@ -1,8 +1,9 @@
-from config import app, api
-from controllers.userController import Signup, Login, CheckSession, Logout
-from controllers.calendarController import Calendars, CalendarsById
-from controllers.eventsController import Events, EventsById
-from controllers.taskController import Tasks, TasksById
+from .config import app, api
+from .controllers.usersController import Signup, Login, CheckSession, Logout
+from .controllers.calendarsController import Calendars, CalendarsById
+from .controllers.eventsController import Events, EventsById
+from .controllers.tasksController import Tasks, TasksById
+from .controllers.invitesController import Invite
 
 
 @app.route("/")
@@ -15,6 +16,10 @@ api.add_resource(Signup, "/signup")
 api.add_resource(Login, "/login")
 api.add_resource(CheckSession, "/check_session")
 api.add_resource(Logout, "/logout")
+
+# invite routes
+api.add_resource(Invite, "/invites")
+
 
 # calendar routes
 api.add_resource(Calendars, "/calendars")
