@@ -2,10 +2,10 @@ from flask import request, session
 from flask_restful import Resource
 
 # Local imports
-from ..config import db
+from server.config import db
 
 # Add your model imports
-from ..models import User
+from server.models import User
 
 
 class Signup(Resource):

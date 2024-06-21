@@ -1,7 +1,8 @@
 from sqlalchemy.orm import validates
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_serializer import SerializerMixin
-from ..config import db, bcrypt
+from ..config import bcrypt
+from ..config import db
 from .Participant import particpants
 
 
@@ -11,11 +12,6 @@ class User(db.Model, SerializerMixin):
     serialize_rules = ("-_password_hash",)
 
     id = db.Column(db.Integer, primary_key=True)
-    # participant_id = db.Column(
-    #     db.Integer,
-    #     db.ForeignKey("participants.id", ondelete="CASCADE"),
-    #     nullable=True,
-    # )
 
     first_name = db.Column(db.String, nullable=False)
     last_name = db.Column(db.String, nullable=False)
