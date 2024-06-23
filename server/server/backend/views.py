@@ -1,1 +1,1 @@
-from views.userViews import signup, login
+from views.userViews import UserViews
