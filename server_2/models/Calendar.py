@@ -1,6 +1,6 @@
 from sqlalchemy_serializer import SerializerMixin
 from ..models.Participant import particpants
-from ..config import db
+from .. import db
 
 
 class Calendar(db.Model, SerializerMixin):

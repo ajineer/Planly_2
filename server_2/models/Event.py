@@ -1,5 +1,5 @@
 from sqlalchemy_serializer import SerializerMixin
-from ..config import db
+from .. import db
 
 
 class Event(db.Model, SerializerMixin):

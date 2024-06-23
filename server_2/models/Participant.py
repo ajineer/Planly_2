@@ -1,4 +1,4 @@
-from server.config import db
+from .. import db
 
 particpants = db.Table(
     "participants",

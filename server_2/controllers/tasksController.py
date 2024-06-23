@@ -3,7 +3,7 @@ from flask_restful import Resource
 from sqlalchemy.exc import IntegrityError
 
 # Local imports
-from ..config import db
+from .. import db
 
 # Add your model imports
 from ..models import Task
