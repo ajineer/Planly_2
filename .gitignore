@@ -13,6 +13,15 @@ dist
 dist-ssr
 *.local
 
+# Ignore Pipenv virtual environment
+.venv
+
+# Ignore Pipfile.lock (generally recommended to include)
+Pipfile.lock
+
+# Ignore __pycache__ directories
+__pycache__
+
 
 # Editor directories and files
 .vscode/*
