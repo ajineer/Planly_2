@@ -2,15 +2,16 @@ from flask import request, session
 from flask_restful import Resource
 from sqlalchemy.exc import IntegrityError
 
-# Local imports
-from .. import db
 
-# Add your model imports
-from ..models import Participant
+def use_db():
+    from app import db
+    return db
 
 
 class Particpants(Resource):
     def post(self):
+        from db_models import Participant
+        db = use_db()
         if session.get("user_id"):
             try:
                 new_particpant = Participant(
@@ -25,6 +26,8 @@ class Particpants(Resource):
 
 class ParticpantsById(Resource):
     def delete(self, particpant_id):
+        from db_models import Participant
+        db = use_db()
         if session.get("user_id"):
             participant = Participant.query.filter(
                 Participant.id == particpant_id

@@ -2,15 +2,16 @@ from flask import request, session
 from flask_restful import Resource
 from sqlalchemy.exc import IntegrityError
 
-# Local imports
-from .. import db
 
-# Add your model imports
-from ..models import Task
+def use_db():
+    from app import db
+    return db
 
 
 class Tasks(Resource):
     def post(self):
+        from db_models import Task
+        db = use_db()
         if session.get("user_id"):
             try:
                 new_task = Task(
@@ -29,6 +30,8 @@ class Tasks(Resource):
 
 class TasksById(Resource):
     def patch(self, task_id):
+        from db_models import Task
+        db = use_db()
         if session.get("user_id"):
 
             task = Task.query.filter(Task.id == task_id).first()
@@ -48,6 +51,8 @@ class TasksById(Resource):
         return {"error": "Unauthorized"}, 401
 
     def delete(self, task_id):
+        from db_models import Task
+        db = use_db()
         if session.get("user_id"):
             task = Task.query.filter(Task.id == task_id).first()
             if task:

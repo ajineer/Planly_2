@@ -2,15 +2,15 @@ from flask import request, session
 from flask_restful import Resource
 from sqlalchemy.exc import IntegrityError
 
-# Local imports
-from .. import db
 
-# Add your model imports
-from ..models import Event
-
+def use_db():
+    from app import db
+    return db
 
 class Events(Resource):
     def post(self):
+        from db_models import Event
+        db = use_db()
         if session.get("user_id"):
             try:
                 new_event = Event(
@@ -29,6 +29,8 @@ class Events(Resource):
 
 class EventsById(Resource):
     def patch(self, event_id):
+        from db_models import Event
+        db = use_db()
         if session.get("user_id"):
             event = Event.query.filter(Event.id == event_id).first()
             if event:
@@ -43,6 +45,8 @@ class EventsById(Resource):
         return {"error": "Unauthorized"}, 401
 
     def delete(self, event_id):
+        from db_models import Event
+        db = use_db()
         if session.get("user_id"):
             event = Event.query.filter(Event.id == event_id).first()
             if event:

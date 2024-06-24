@@ -2,16 +2,15 @@ from flask import request, session
 from flask_restful import Resource
 from sqlalchemy.exc import IntegrityError
 
-# Local imports
-from .. import db
 
-# Add your model imports
-from ..models import Calendar
-
+def use_db():
+    from app import db
+    return db
 
 class Calendars(Resource):
 
     def get(self):
+        from db_models import Calendar
         if session.get("user_id"):
             calendars = Calendar.query.filter(
                 Calendar.user_id == session["user_id"]
@@ -31,7 +30,8 @@ class Calendars(Resource):
         return {"error": "Unauthorized"}, 401
 
     def post(self):
-
+        from db_models import Calendar
+        db = use_db()
         if session.get("user_id"):
             try:
                 new_calendar = Calendar(
@@ -48,7 +48,10 @@ class Calendars(Resource):
 
 
 class CalendarsById(Resource):
+
     def patch(self, calendar_id):
+        from db_models import Calendar
+        db = use_db()
         if session.get("user_id"):
             calendar = Calendar.query.filter(Calendar.id == calendar_id).first()
             if calendar:
@@ -61,6 +64,8 @@ class CalendarsById(Resource):
         return {"error": "Unauthorized"}, 401
 
     def delete(self, calendar_id):
+        from db_models import Calendar
+        db = use_db()
         if session.get("user_id"):
             calendar = Calendar.query.filter(Calendar.id == calendar_id).first()
             if calendar:
