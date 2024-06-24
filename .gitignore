@@ -16,6 +16,7 @@ instance
 
 # Ignore Pipenv virtual environment
 .venv
+venv
 
 # Ignore Pipfile.lock (generally recommended to include)
 Pipfile.lock
