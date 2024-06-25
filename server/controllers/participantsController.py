@@ -5,12 +5,14 @@ from sqlalchemy.exc import IntegrityError
 
 def use_db():
     from app import db
+
     return db
 
 
 class Particpants(Resource):
     def post(self):
-        from db_models import Participant
+        from models import Participant
+
         db = use_db()
         if session.get("user_id"):
             try:
@@ -26,7 +28,8 @@ class Particpants(Resource):
 
 class ParticpantsById(Resource):
     def delete(self, particpant_id):
-        from db_models import Participant
+        from models import Participant
+
         db = use_db()
         if session.get("user_id"):
             participant = Participant.query.filter(

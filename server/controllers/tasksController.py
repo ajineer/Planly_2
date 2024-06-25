@@ -5,12 +5,14 @@ from sqlalchemy.exc import IntegrityError
 
 def use_db():
     from app import db
+
     return db
 
 
 class Tasks(Resource):
     def post(self):
-        from db_models import Task
+        from models import Task
+
         db = use_db()
         if session.get("user_id"):
             try:
@@ -30,7 +32,8 @@ class Tasks(Resource):
 
 class TasksById(Resource):
     def patch(self, task_id):
-        from db_models import Task
+        from models import Task
+
         db = use_db()
         if session.get("user_id"):
 
@@ -51,7 +54,8 @@ class TasksById(Resource):
         return {"error": "Unauthorized"}, 401
 
     def delete(self, task_id):
-        from db_models import Task
+        from models import Task
+
         db = use_db()
         if session.get("user_id"):
             task = Task.query.filter(Task.id == task_id).first()

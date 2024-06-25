@@ -1,7 +1,8 @@
 from sqlalchemy_serializer import SerializerMixin
-from db_models.Participant import participants
+from models.Participant import participants
 
 from config import db
+
 
 class Calendar(db.Model, SerializerMixin):
 
@@ -16,7 +17,10 @@ class Calendar(db.Model, SerializerMixin):
     description = db.Column(db.String)
 
     user = db.relationship("User", back_populates="calendars")
-    users = db.relationship("User", secondary=participants, back_populates="calendars_group")
+    users = db.relationship(
+        "User", secondary=participants, back_populates="calendars_group"
+    )
+    invites = db.relationship("Invite", back_populates="calendars")
     events = db.relationship(
         "Event", back_populates="calendar", cascade="all, delete, delete-orphan"
     )

@@ -3,6 +3,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_serializer import SerializerMixin
 
 from .Participant import participants
+from .Invite import Invite
 
 from config import db, bcrypt
 
@@ -10,7 +11,13 @@ from config import db, bcrypt
 class User(db.Model, SerializerMixin):
     __tablename__ = "users"
 
-    serialize_rules = ("-_password_hash",)
+    serialize_rules = (
+        "-_password_hash",
+        "-calendars",
+        "-calendars_group",
+        "-sent_invites",
+        "-received_invites",
+    )
 
     id = db.Column(db.Integer, primary_key=True)
 
@@ -22,8 +29,17 @@ class User(db.Model, SerializerMixin):
     calendars = db.relationship(
         "Calendar", back_populates="user", cascade="all, delete, delete-orphan"
     )
-    invites = db.relationship(
-        "Invite", back_populates="user", cascade="all, delete, delete-orphan"
+    sent_invites = db.relationship(
+        "Invite",
+        foreign_keys=[Invite.sender_id],
+        back_populates="sender",
+        cascade="all, delete, delete-orphan",
+    )
+    received_invites = db.relationship(
+        "Invite",
+        foreign_keys=[Invite.receiver_id],
+        back_populates="receiver",
+        cascade="all, delete, delete-orphan",
     )
 
     calendars_group = db.relationship(
@@ -44,6 +60,6 @@ class User(db.Model, SerializerMixin):
 
     @validates("email")
     def validate_email(self, key, email):
-        if not email or not isinstance(email, str):
+        if "@" not in email or not email:
             raise ValueError("Email must be a non-empty string.")
         return email

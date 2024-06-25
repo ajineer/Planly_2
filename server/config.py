@@ -13,13 +13,16 @@ metadata = MetaData(
     }
 )
 
-app = Flask(__name__, instance_path='/Users/ajineer/Desktop/Development/code/phase-6/Planly_2/server/instance')
+app = Flask(
+    __name__,
+    instance_path="/Users/ajineer/Desktop/Development/code/phase-6/Planly_2/server/instance",
+)
 db = SQLAlchemy(metadata=metadata)
 bcrypt = Bcrypt(app)
 api = Api()
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///app.db"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 app.json.compact = False
 app.secret_key = secrets.token_hex(16)
