@@ -1,19 +1,13 @@
 from flask import request, session
 from flask_restful import Resource
 from sqlalchemy.exc import IntegrityError
-
-
-def use_db():
-    from app import db
-
-    return db
+from config import db
 
 
 class Tasks(Resource):
     def post(self):
         from models import Task
 
-        db = use_db()
         if session.get("user_id"):
             try:
                 new_task = Task(
@@ -34,7 +28,6 @@ class TasksById(Resource):
     def patch(self, task_id):
         from models import Task
 
-        db = use_db()
         if session.get("user_id"):
 
             task = Task.query.filter(Task.id == task_id).first()

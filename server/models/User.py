@@ -1,10 +1,7 @@
 from sqlalchemy.orm import validates
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_serializer import SerializerMixin
-
-from .Participant import participants
 from .Invite import Invite
-
 from config import db, bcrypt
 
 
@@ -14,9 +11,7 @@ class User(db.Model, SerializerMixin):
     serialize_rules = (
         "-_password_hash",
         "-calendars",
-        "-calendars_group",
-        "-sent_invites",
-        "-received_invites",
+        "-calendar_group",
     )
 
     id = db.Column(db.Integer, primary_key=True)
@@ -42,8 +37,8 @@ class User(db.Model, SerializerMixin):
         cascade="all, delete, delete-orphan",
     )
 
-    calendars_group = db.relationship(
-        "Calendar", secondary=participants, back_populates="users"
+    calendar_group = db.relationship(
+        "Calendar", secondary="participants", back_populates="user_group"
     )
 
     @hybrid_property

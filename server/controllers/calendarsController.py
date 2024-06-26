@@ -19,7 +19,7 @@ class Calendars(Resource):
                         rules=(
                             "tasks",
                             "events",
-                            "invites",
+                            "user_group",
                         )
                     )
                     for c in calendars

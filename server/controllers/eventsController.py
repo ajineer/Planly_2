@@ -1,19 +1,13 @@
 from flask import request, session
 from flask_restful import Resource
 from sqlalchemy.exc import IntegrityError
-
-
-def use_db():
-    from app import db
-
-    return db
+from config import db
 
 
 class Events(Resource):
     def post(self):
         from models import Event
 
-        db = use_db()
         if session.get("user_id"):
             try:
                 new_event = Event(

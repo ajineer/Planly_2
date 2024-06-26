@@ -9,10 +9,10 @@ class Signup(Resource):
 
         from models import User
 
-        email = request.get_json().get("email")
-        first_name = request.get_json().get("first_name")
-        last_name = request.get_json().get("last_name")
-        password = request.get_json().get("password")
+        email = request.get_json()["email"]
+        first_name = request.get_json()["first_name"]
+        last_name = request.get_json()["last_name"]
+        password = request.get_json()["password"]
 
         user = User.query.filter(User.email == email).first()
 
@@ -26,7 +26,17 @@ class Signup(Resource):
             db.session.add(new_user)
             db.session.commit()
             session["user_id"] = new_user.id
-            return new_user.to_dict(), 201
+            return (
+                new_user.to_dict(
+                    rules=[
+                        "-calendars",
+                        "-calendar_group",
+                        "-sent_invites",
+                        "-received_invites",
+                    ]
+                ),
+                201,
+            )
 
         return {"error": "422 Unprocessable Entity"}, 422
 
@@ -46,7 +56,16 @@ class Login(Resource):
             if user.authenticate(password):
                 session["user_id"] = user.id
                 if session["user_id"]:
-                    return user.to_dict(), 200
+                    return (
+                        user.to_dict(
+                            rules=[
+                                "calendar_group",
+                                "sent_invites",
+                                "received_invites",
+                            ]
+                        ),
+                        200,
+                    )
                 return {"error": "session could not be established"}, 400
 
         return {"error": "Unauthorized"}, 401

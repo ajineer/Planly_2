@@ -1,6 +1,7 @@
 from sqlalchemy_serializer import SerializerMixin
 from config import db
 
+
 class Task(db.Model, SerializerMixin):
 
     __tablename__ = "tasks"
