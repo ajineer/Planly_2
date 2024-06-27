@@ -79,7 +79,16 @@ class CheckSession(Resource):
 
         user = User.query.filter(User.id == session.get("user_id")).first()
         if user:
-            return user.to_dict(), 200
+            return (
+                user.to_dict(
+                    rules=[
+                        "calendar_group",
+                        "sent_invites",
+                        "received_invites",
+                    ]
+                ),
+                200,
+            )
         return {"error": "Unauthorized"}, 401
 
 
