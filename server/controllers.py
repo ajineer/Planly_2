@@ -100,10 +100,9 @@ class Logout(Resource):
         return {"error": "Unauthorized"}, 401
 
 
-class Calendars(Resource):
+class CalendarController(Resource):
 
     def get(self):
-        from models import Calendar
 
         if session.get("user_id"):
             calendars = Calendar.query.filter(
@@ -140,24 +139,49 @@ class Calendars(Resource):
         return {"error": "Unauthorized"}, 401
 
 
-class CalendarsById(Resource):
+class CalendarControllerById(Resource):
 
-    def patch(self, calendar_id):
-        from models import Calendar
-
+    def get(self, calendar_id):
         if session.get("user_id"):
             calendar = Calendar.query.filter(Calendar.id == calendar_id).first()
             if calendar:
-                setattr(calendar, "name", request.get_json()["name"])
-                setattr(calendar, "description", request.get_json()["description"])
-                db.session.add(calendar)
-                db.session.commit()
-                return calendar.to_dict(), 202
+                return calendar.to_dict(), 200
+            return {"error": "calendar not found"}, 404
+        return {"error": "Unauthorized"}, 401
+
+    def patch(self, calendar_id):
+
+        if session.get("user_id"):
+            calendar = Calendar.query.filter(
+                Calendar.id == calendar_id
+                and Calendar.user_id == session.get("user_id")
+            ).first()
+            if calendar:
+                if (
+                    request.get_json()["type"]
+                    and request.get_json()["type"] == "remove participant"
+                ):
+                    email = request.get_json()["email"]
+                    # updated_user_group = [
+                    #     user for user in calendar.user_group if user.email != email
+                    # ]
+                    # calendar.user_group = updated_user_group
+                    calendar.user_group = list(
+                        filter(lambda user: user.email != email, calendar.user_group)
+                    )
+                    db.session.add(calendar)
+                    db.session.commit()
+                    return calendar.to_dict(), 202
+                else:
+                    setattr(calendar, "name", request.get_json()["name"])
+                    setattr(calendar, "description", request.get_json()["description"])
+                    db.session.add(calendar)
+                    db.session.commit()
+                    return calendar.to_dict(), 202
             return {"error": "Calendar not found"}, 404
         return {"error": "Unauthorized"}, 401
 
     def delete(self, calendar_id):
-        from models import Calendar
 
         if session.get("user_id"):
             calendar = Calendar.query.filter(Calendar.id == calendar_id).first()
@@ -169,9 +193,8 @@ class CalendarsById(Resource):
         return {"error": "Unauthorized"}, 401
 
 
-class Events(Resource):
+class EventController(Resource):
     def post(self):
-        from models import Event
 
         if session.get("user_id"):
             try:
@@ -189,7 +212,7 @@ class Events(Resource):
         return {"error": "Unauthorized"}, 401
 
 
-class EventsById(Resource):
+class EventControllerById(Resource):
 
     def patch(self, event_id):
         if session.get("user_id"):
@@ -216,7 +239,7 @@ class EventsById(Resource):
         return {"error": "Unauthorized"}, 401
 
 
-class Tasks(Resource):
+class TaskController(Resource):
 
     def post(self):
 
@@ -236,7 +259,7 @@ class Tasks(Resource):
         return {"error": "Unauthorized"}, 401
 
 
-class TasksById(Resource):
+class TaskControllerById(Resource):
 
     def patch(self, task_id):
 
@@ -270,14 +293,13 @@ class TasksById(Resource):
         return {"error": "Unauthorized"}, 401
 
 
-class Invite(Resource):
+class InviteController(Resource):
 
     def get(self):
 
         if session.get("user_id"):
-            invites = Invite.query.filter(
-                Invite.receiver_email == session["email"]
-            ).all()
+            user = User.query.filter(User.id == session["user_id"]).first()
+            invites = Invite.query.filter(Invite.receiver_email == user.email).all()
             if invites:
                 return [i.to_dict() for i in invites], 200
             return {"error": "No invites found"}, 404
@@ -287,33 +309,38 @@ class Invite(Resource):
 
         if session.get("user_id"):
             try:
-                invite = Invite(
-                    sender_id=session["user_id"],
-                    sender_email=session["email"],
-                    receiver_email=request.get_json()["email"],
+                user = User.query.filter(User.id == session["user_id"]).first()
+                new_invite = Invite(
+                    sender_email=user.email,
+                    receiver_email=request.get_json()["receiver_email"],
                     calendar_id=request.get_json()["calendar_id"],
                     sent_at=request.get_json()["sent_at"],
-                    status=request.get_json()["status"],
+                    status="pending",
                 )
-                db.session.add(invite)
+                db.session.add(new_invite)
                 db.session.commit()
-                return invite.to_dict(), 201
+                return new_invite.to_dict(), 201
             except IntegrityError:
                 return {"error": "could not create invite"}, 422
         return {"error": "Unauthorized"}
 
 
-class InvitesById(Resource):
+class InviteControllerById(Resource):
 
     def patch(self, invite_id):
 
         if session.get("user_id"):
-            invite = Invite.query.filter(Invite.id == invite_id).first()
+            user = User.query.filter(User.id == session["user_id"])
+            invite = Invite.query.filter(
+                Invite.id == invite_id and Invite.receiver_email == user.email
+            ).first()
             if invite:
                 status = request.get_json()["status"]
                 if status == "accepted":
                     setattr(invite, "status", status)
-                    user = User.query.filter(User.id == invite.receiver_id).first()
+                    user = User.query.filter(
+                        User.email == invite.receiver_email
+                    ).first()
                     calendar = Calendar.query.filter(
                         Calendar.id == invite.calendar_id
                     ).first()
