@@ -2,7 +2,7 @@ from flask import request, session
 from flask_restful import Resource
 from sqlalchemy.exc import IntegrityError
 from config import db
-from models import User, Calendar, Event, Task, Invite
+from models import User, Calendar, Event, Task, Invite, Participant, Profile
 
 
 class Signup(Resource):
@@ -25,18 +25,7 @@ class Signup(Resource):
                 new_user.password_hash = password
                 db.session.add(new_user)
                 db.session.commit()
-                session["user_id"] = new_user.id
-                return (
-                    new_user.to_dict(
-                        rules=[
-                            "-calendars",
-                            "-calendar_group",
-                            "-sent_invites",
-                            "-received_invites",
-                        ]
-                    ),
-                    201,
-                )
+                return {"message": "User created, please login"}, 201
             return {"error": "cannot signup twice with same email"}, 409
         except IntegrityError:
             return {"error": "422 Unprocessable Entity"}, 422
@@ -56,19 +45,10 @@ class Login(Resource):
             if user.authenticate(password):
                 session["user_id"] = user.id
                 if session["user_id"]:
-                    return (
-                        user.to_dict(
-                            rules=[
-                                "calendar_group",
-                                "sent_invites",
-                                "received_invites",
-                            ]
-                        ),
-                        200,
-                    )
+                    return user.to_dict(), 200
                 return {"error": "session could not be established"}, 400
 
-        return {"error": "Unauthorized"}, 401
+        return {"error": "User not in database"}, 404
 
 
 class CheckSession(Resource):
@@ -78,13 +58,7 @@ class CheckSession(Resource):
         user = User.query.filter(User.id == session.get("user_id")).first()
         if user:
             return (
-                user.to_dict(
-                    rules=[
-                        "calendar_group",
-                        "sent_invites",
-                        "received_invites",
-                    ]
-                ),
+                user.to_dict(),
                 200,
             )
         return {"error": "Unauthorized"}, 401
@@ -114,7 +88,7 @@ class CalendarController(Resource):
                         rules=(
                             "tasks",
                             "events",
-                            "user_group",
+                            "participant.guest_profiles",
                         )
                     )
                     for c in calendars
@@ -126,10 +100,14 @@ class CalendarController(Resource):
 
         if session.get("user_id"):
             try:
+                new_participant = Participant()
+                db.session.add(new_participant)
+                db.session.commit()
                 new_calendar = Calendar(
                     user_id=session["user_id"],
                     name=request.get_json()["name"],
                     description=request.get_json()["description"],
+                    participant_id=new_participant.id,
                 )
                 db.session.add(new_calendar)
                 db.session.commit()
@@ -143,9 +121,14 @@ class CalendarControllerById(Resource):
 
     def get(self, calendar_id):
         if session.get("user_id"):
-            calendar = Calendar.query.filter(Calendar.id == calendar_id).first()
+            calendar = Calendar.query.filter(
+                Calendar.id == calendar_id and Calendar.user_id == session["user_id"]
+            ).first()
             if calendar:
-                return calendar.to_dict(), 200
+                return (
+                    calendar.to_dict(rules=("participant.guest_profiles",)),
+                    200,
+                )
             return {"error": "calendar not found"}, 404
         return {"error": "Unauthorized"}, 401
 
@@ -153,31 +136,43 @@ class CalendarControllerById(Resource):
 
         if session.get("user_id"):
             calendar = Calendar.query.filter(
-                Calendar.id == calendar_id
-                and Calendar.user_id == session.get("user_id")
+                Calendar.id == calendar_id and Calendar.user_id == session["user_id"]
             ).first()
             if calendar:
-                if (
-                    request.get_json()["type"]
-                    and request.get_json()["type"] == "remove participant"
-                ):
-                    email = request.get_json()["email"]
-                    # updated_user_group = [
-                    #     user for user in calendar.user_group if user.email != email
-                    # ]
-                    # calendar.user_group = updated_user_group
-                    calendar.user_group = list(
-                        filter(lambda user: user.email != email, calendar.user_group)
+                if request.get_json()["type"] == "remove participant":
+                    participant = calendar.participant
+                    if participant:
+                        participant.guest_users = list(
+                            lambda guest: guest.email != request.get_json()["email"],
+                            participant.guest_profiles,
+                        )
+                        db.session.add(calendar)
+                        db.session.commit()
+                        return (
+                            calendar.to_dict(rules=("participant.guest_profiles",)),
+                            202,
+                        )
+                    return {"error": "no user group with this calendar"}, 404
+                elif request.get_json()["type"] == "update permissions":
+                    participant = calendar.participant
+                    update_profile = Profile.query.filter(
+                        Profile.email == request.get_json()["email"]
+                        and Profile.participant_id == participant.id
+                    ).first()
+                    setattr(
+                        update_profile,
+                        "permissions",
+                        request.get_json()["new permissions"],
                     )
-                    db.session.add(calendar)
+                    db.session.add(update_profile)
                     db.session.commit()
-                    return calendar.to_dict(), 202
+                    return calendar.to_dict(rules=("participant.guest_profiles",)), 202
                 else:
                     setattr(calendar, "name", request.get_json()["name"])
                     setattr(calendar, "description", request.get_json()["description"])
                     db.session.add(calendar)
                     db.session.commit()
-                    return calendar.to_dict(), 202
+                    return calendar.to_dict(rules=("participant.profiles")), 202
             return {"error": "Calendar not found"}, 404
         return {"error": "Unauthorized"}, 401
 
@@ -313,8 +308,10 @@ class InviteController(Resource):
                 new_invite = Invite(
                     sender_email=user.email,
                     receiver_email=request.get_json()["receiver_email"],
+                    recipient_name=request.get_json()["recipient_name"],
                     calendar_id=request.get_json()["calendar_id"],
                     sent_at=request.get_json()["sent_at"],
+                    set_permissions=request.get_json()["set_permissions"],
                     status="pending",
                 )
                 db.session.add(new_invite)
@@ -330,30 +327,36 @@ class InviteControllerById(Resource):
     def patch(self, invite_id):
 
         if session.get("user_id"):
-            user = User.query.filter(User.id == session["user_id"])
-            invite = Invite.query.filter(
-                Invite.id == invite_id and Invite.receiver_email == user.email
-            ).first()
-            if invite:
-                status = request.get_json()["status"]
+            invite = Invite.query.filter(Invite.id == invite_id).first()
+            status = request.get_json()["status"]
+            if invite and status:
                 if status == "accepted":
-                    setattr(invite, "status", status)
-                    user = User.query.filter(
-                        User.email == invite.receiver_email
-                    ).first()
                     calendar = Calendar.query.filter(
                         Calendar.id == invite.calendar_id
                     ).first()
-                    user.calendar_group.append(calendar)
-                    calendar.user_group.append(user)
-                    db.session.add(user)
-                    db.session.add(calendar)
-                    db.session.delete(invite)
-                    db.session.commit()
-                    return {"Message": "Invite accepted"}, 202
+                    participant = Participant.query.filter(
+                        Participant.id == calendar.participant_id
+                    ).first()
+                    if calendar and participant:
+                        profile = Profile(
+                            first_name=invite.recipient_name,
+                            email=invite.receiver_email,
+                            user_email=invite.receiver_email,
+                            permissions=invite.set_permissions,
+                        )
+
+                        participant.guest_profiles.append(profile)
+                        participant.shared_calendars.append(calendar)
+                        db.session.add(calendar)
+                        db.session.add(profile)
+                        db.session.add(participant)
+                        db.session.delete(invite)
+                        db.session.commit()
+                        return profile.to_dict(), 202
+                    return {"Message": "No calendar or calendar not sharable"}, 404
                 elif status == "declined":
                     db.session.delete(invite)
                     db.session.commit()
                     return {"Message": "Invite declined and deleted"}, 204
-            return {"error": "Invite not found"}, 404
+            return {"error": "couldn't find invite, or calendar"}, 404
         return {"error": "Unauthorized"}, 401

@@ -5,40 +5,11 @@ import uuid
 from config import db, bcrypt
 
 
-participants = db.Table(
-    "participants",
-    db.Column("user_email", db.String, db.ForeignKey("users.email")),
-    db.Column("calendar_id", db.Integer, db.ForeignKey("calendars.id")),
-)
-
-
-class Calendar(db.Model, SerializerMixin):
-
-    __tablename__ = "calendars"
-
-    serialize_rules = (
-        "-user",
-        "-invites",
-        "-user_id",
-    )
-
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"))
-    name = db.Column(db.String, nullable=False)
-    description = db.Column(db.String)
-
-    user = db.relationship("User", back_populates="calendars")
-    user_group = db.relationship(
-        "User", secondary="participants", back_populates="calendar_group"
-    )
-
-    invites = db.relationship("Invite", back_populates="calendars")
-    events = db.relationship(
-        "Event", back_populates="calendar", cascade="all, delete, delete-orphan"
-    )
-    tasks = db.relationship(
-        "Task", back_populates="calendar", cascade="all, delete, delete-orphan"
-    )
+# participants = db.Table(
+#     "participants",
+#     db.Column("user_email", db.String, db.ForeignKey("users.email")),
+#     db.Column("calendar_id", db.Integer, db.ForeignKey("calendars.id")),
+# )
 
 
 class Event(db.Model, SerializerMixin):
@@ -99,6 +70,8 @@ class Invite(db.Model, SerializerMixin):
     )
     status = db.Column(db.String, nullable=False)
     sent_at = db.Column(db.String, nullable=False)
+    set_permissions = db.Column(db.String, nullable=False)
+    recipient_name = db.Column(db.String, nullable=False)
 
     sender = db.relationship(
         "User", foreign_keys=[sender_email], back_populates="sent_invites"
@@ -109,6 +82,53 @@ class Invite(db.Model, SerializerMixin):
     calendars = db.relationship("Calendar", back_populates="invites")
 
 
+class Participant(db.Model, SerializerMixin):
+
+    __tablename__ = "participants"
+
+    serialize_rules = ("-guest_profiles",)
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    guest_profiles = db.relationship(
+        "Profile", back_populates="participant", cascade="all, delete, delete-orphan"
+    )
+    shared_calendars = db.relationship(
+        "Calendar", back_populates="participant", cascade="all, delete, delete-orphan"
+    )
+
+
+class Calendar(db.Model, SerializerMixin):
+
+    __tablename__ = "calendars"
+
+    serialize_rules = (
+        "-user",
+        "-invites",
+        "-user_id",
+        "-participant",
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"))
+    name = db.Column(db.String, nullable=False)
+    description = db.Column(db.String)
+    participant_id = db.Column(
+        db.Integer, db.ForeignKey("participants.id", ondelete="CASCADE")
+    )
+
+    user = db.relationship("User", back_populates="calendars")
+    participant = db.relationship("Participant", back_populates="shared_calendars")
+
+    invites = db.relationship("Invite", back_populates="calendars")
+    events = db.relationship(
+        "Event", back_populates="calendar", cascade="all, delete, delete-orphan"
+    )
+    tasks = db.relationship(
+        "Task", back_populates="calendar", cascade="all, delete, delete-orphan"
+    )
+
+
 class User(db.Model, SerializerMixin):
 
     __tablename__ = "users"
@@ -116,7 +136,6 @@ class User(db.Model, SerializerMixin):
     serialize_rules = (
         "-_password_hash",
         "-calendars",
-        "-calendar_group",
         "-id",
     )
 
@@ -126,6 +145,9 @@ class User(db.Model, SerializerMixin):
     last_name = db.Column(db.String, nullable=False)
     email = db.Column(db.String, nullable=False)
     _password_hash = db.Column(db.String)
+    guest_profiles = db.relationship(
+        "Profile", back_populates="user", cascade="all, delete, delete-orphan"
+    )
 
     calendars = db.relationship(
         "Calendar", back_populates="user", cascade="all, delete, delete-orphan"
@@ -141,10 +163,6 @@ class User(db.Model, SerializerMixin):
         foreign_keys=[Invite.receiver_email],
         back_populates="receiver",
         cascade="all, delete, delete-orphan",
-    )
-
-    calendar_group = db.relationship(
-        "Calendar", secondary="participants", back_populates="user_group"
     )
 
     @hybrid_property
@@ -164,3 +182,23 @@ class User(db.Model, SerializerMixin):
         if "@" not in email or not email:
             raise ValueError("Email must be a non-empty string.")
         return email
+
+
+class Profile(db.Model, SerializerMixin):
+
+    __tablename__ = "profiles"
+
+    serialize_rules = ("-user",)
+
+    id = db.Column(db.Integer, primary_key=True)
+    first_name = db.Column(db.String, nullable=False)
+    email = db.Column(db.String, nullable=False)
+    permissions = db.Column(db.String, nullable=False)
+    user_email = db.Column(db.Integer, db.ForeignKey("users.email", ondelete="CASCADE"))
+
+    participant_id = db.Column(
+        db.Integer, db.ForeignKey("participants.id", ondelete="CASCADE")
+    )
+
+    user = db.relationship("User", back_populates="guest_profiles")
+    participant = db.relationship("Participant", back_populates="guest_profiles")
