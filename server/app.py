@@ -11,7 +11,7 @@ from controllers import (
     TaskController,
     TaskControllerById,
     InviteController,
-    InviteControllerById,
+    # InviteControllerById,
 )
 
 api.add_resource(Signup, "/signup", endpoint="signup")
@@ -21,7 +21,7 @@ api.add_resource(Logout, "/logout", endpoint="logout")
 api.add_resource(CalendarController, "/calendars", endpoint="calendars")
 api.add_resource(CalendarControllerById, "/calendars/<int:calendar_id>")
 api.add_resource(InviteController, "/invites", endpoint="invites")
-api.add_resource(InviteControllerById, "/invites/<int:invite_id>")
+# api.add_resource(InviteControllerById, "/invites/<int:invite_id>")
 api.add_resource(TaskController, "/tasks", endpoint="tasks")
 api.add_resource(TaskControllerById, "/task/<int:task_id>")
 api.add_resource(EventController, "/events", endpoint="events")
