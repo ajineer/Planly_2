@@ -3,7 +3,7 @@ from flask_restful import Resource
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.hybrid import hybrid_property
 from config import db
-from models import User, Calendar, Event, Task, Invite, UserCalendar
+from models import User, Calendar, Event, Task, Invite, Collaboration
 from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
@@ -28,7 +28,6 @@ class Signup(Resource):
                     first_name=first_name,
                     last_name=last_name,
                     email=email,
-                    shared_id=None,
                 )
                 new_user.password_hash = password
                 db.session.add(new_user)
@@ -105,7 +104,7 @@ class CalendarController(Resource):
                             rules=(
                                 "tasks",
                                 "events",
-                                "participant.invites",
+                                "collaborations",
                             )
                         )
                         for c in calendars
@@ -329,53 +328,33 @@ class InviteController(Resource):
 
         if session.get("user_token"):
             data = request.get_json()
+            if not data:
+                return {"error": "Invalid request parameters"}, 400
             invite_id = UUID(data["invite_id"])
             status = data["status"]
-            invite = Invite.query.filter(Invite.id == invite_id).first()
-            if not invite or not status:
-                return {"error": "Invite or status not found in request data"}, 400
-            calendar = Calendar.query.filter(
-                Calendar.id == UUID(invite.calendar_id)
-            ).first()
-            if not calendar:
-                return {"error": "Calendar not found for the invite"}, 404
-            email, user_id = decode_token(session["user_token"])
-            user = User.query.filter(User.id == user_id).first()
-            if not user:
-                return {"error": "User not found"}, 404
+            if not invite_id or not status:
+                return {"error": "Invalid request parameters"}, 400
             if status == "accepted":
-                user_calendar = UserCalendar.query.filter(
-                    UserCalendar.id == user.shared_id
-                ).first()
-                try:
-                    if not user_calendar:
-                        new_user_calendar = UserCalendar(
-                            permissions=invite.set_permissions
+                invite = Invite.query.filter(Invite.id == invite_id).first()
+                if invite:
+                    try:
+                        new_collaboration = Collaboration(
+                            permissions=invite.set_permissions,
+                            owner_email=invite.sender_email,
+                            guest_email=invite.receiver_email,
+                            calendar_id=UUID(invite.calendar_id),
                         )
-                        db.session.add(new_user_calendar)
-                        db.session.commit()
-
-                        setattr(calendar, "shared_id", new_user_calendar.id)
-                        setattr(user, "shared_id", new_user_calendar.id)
                         setattr(invite, "status", status)
-                        db.session.add(user)
-                        db.session.add(calendar)
                         db.session.add(invite)
+                        db.session.add(new_collaboration)
                         db.session.commit()
-                        return new_user_calendar.to_dict()
-                    else:
-                        return {
-                            "error": "cannot share calendar more than once with same user"
-                        }, 409
-                except IntegrityError:
-                    db.session.rollback()
-                    return {"error": "Could not join recipient and calendar"}, 422
+                        return new_collaboration.to_dict(rules=("calendar",)), 201
+                    except IntegrityError:
+                        return {"error": "could not create collaboration"}, 422
+                return {"error": "invite not found"}, 404
             elif status == "declined":
                 db.session.delete(invite)
                 db.session.commit()
                 return {"Message": "Invite declined and deleted"}, 204
             return {"error": "Invalid status or operation"}, 400
         return {"error": "Unauthorized"}, 401
-
-
-# class InviteControllerById(Resource):

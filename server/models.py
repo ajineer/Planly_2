@@ -72,42 +72,28 @@ class Invite(db.Model, SerializerMixin):
     )
 
 
-class UserCalendar(db.Model, SerializerMixin):
+class Collaboration(db.Model, SerializerMixin):
 
-    __tablename__ = "user_calendars"
+    __tablename__ = "collaborations"
+
+    serialize_rules = (
+        "-owner",
+        "-guest",
+    )
 
     id = db.Column(db.UUID(as_uuid=True), primary_key=True, default=uuid4)
     permissions = db.Column(db.String, nullable=False)
-
-    shared_calendars = db.relationship(
-        "Calendar",
-        back_populates="user_calendars",
-        cascade="all, delete, delete-orphan",
+    owner_email = db.Column(db.String, db.ForeignKey("users.email", ondelete="CASCADE"))
+    guest_email = db.Column(db.String, db.ForeignKey("users.email", ondelete="CASCADE"))
+    calendar_id = db.Column(db.UUID(as_uuid=True), db.ForeignKey("calendars.id"))
+    owner = db.relationship(
+        "User", foreign_keys=[owner_email], back_populates="owned_collaborations"
+    )
+    guest = db.relationship(
+        "User", foreign_keys=[guest_email], back_populates="guest_collaborations"
     )
 
-    guest_users = db.relationship(
-        "User",
-        back_populates="user_calendars",
-        cascade="all, delete, delete-orphan",
-    )
-
-    # def to_dict(self, reciever_email=None):
-    #     if reciever_email:
-    #         invite = next(
-    #             (
-    #                 invite
-    #                 for invite in self.invites
-    #                 if invite.receiver_email == reciever_email
-    #             ),
-    #             None,
-    #         )
-    #         if invite and invite.check_status():
-    #             return super().to_dict()
-    #         else:
-    #             data = super().to_dict()
-    #             data.pop("shared_calendars", None)
-    #             return data
-    #     return super().to_dict()
+    calendar = db.relationship("Calendar", back_populates="collaborations")
 
 
 class Calendar(db.Model, SerializerMixin):
@@ -118,7 +104,7 @@ class Calendar(db.Model, SerializerMixin):
         "-user",
         "-user_id",
         "-calendar_id",
-        "-user_calendars",
+        "-collaborations.calendar",
     )
 
     id = db.Column(db.UUID(as_uuid=True), primary_key=True, default=uuid4)
@@ -128,41 +114,20 @@ class Calendar(db.Model, SerializerMixin):
     )
     name = db.Column(db.String, nullable=False)
     description = db.Column(db.String)
-    shared_id = db.Column(
-        db.UUID(as_uuid=True),
-        db.ForeignKey("user_calendars.id", ondelete="CASCADE"),
-        nullable=True,
-    )
 
     user = db.relationship("User", back_populates="calendars")
-    user_calendars = db.relationship("UserCalendar", back_populates="shared_calendars")
+
+    collaborations = db.relationship(
+        "Collaboration",
+        back_populates="calendar",
+        cascade="all, delete, delete-orphan",
+    )
     events = db.relationship(
         "Event", back_populates="calendar", cascade="all, delete, delete-orphan"
     )
     tasks = db.relationship(
         "Task", back_populates="calendar", cascade="all, delete, delete-orphan"
     )
-
-    # def to_dict(self, receiver_email=None):
-    #     if receiver_email:
-    #         participant = self.participant
-    #         if participant:
-    #             invite = next(
-    #                 (
-    #                     invite
-    #                     for invite in participant.invites
-    #                     if invite.receiver_email == receiver_email
-    #                 ),
-    #                 None,
-    #             )
-    #             if invite and invite.check_status():
-    #                 return super().to_dict()
-    #             else:
-    #                 data = super().to_dict()
-    #                 data.pop("events", None)
-    #                 data.pop("tasks", None)
-    #                 return data
-    #     return super().to_dict()
 
 
 class User(db.Model, SerializerMixin):
@@ -172,7 +137,8 @@ class User(db.Model, SerializerMixin):
     serialize_rules = (
         "-_password_hash",
         "-calendars",
-        "-user_calendars",
+        "-owned_collaborations.owner",
+        "-guest_collaborations.guest",
     )
 
     id = db.Column(db.UUID(as_uuid=True), primary_key=True, default=uuid4)
@@ -181,17 +147,23 @@ class User(db.Model, SerializerMixin):
     last_name = db.Column(db.String, nullable=False)
     email = db.Column(db.String, nullable=False, unique=True)
     _password_hash = db.Column(db.String)
-    shared_id = db.Column(
-        db.UUID(as_uuid=True),
-        db.ForeignKey("user_calendars.id", ondelete="CASCADE"),
-        nullable=True,
-    )
 
     calendars = db.relationship("Calendar", back_populates="user")
-    user_calendars = db.relationship(
-        "UserCalendar",
-        back_populates="guest_users",
+
+    owned_collaborations = db.relationship(
+        "Collaboration",
+        foreign_keys=[Collaboration.owner_email],
+        back_populates="owner",
+        cascade="all, delete, delete-orphan",
     )
+
+    guest_collaborations = db.relationship(
+        "Collaboration",
+        foreign_keys=[Collaboration.guest_email],
+        back_populates="guest",
+        cascade="all, delete, delete-orphan",
+    )
+
     sent_invites = db.relationship(
         "Invite",
         foreign_keys=[Invite.sender_email],
