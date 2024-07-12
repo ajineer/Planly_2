@@ -11,9 +11,17 @@ class Event(db.Model, SerializerMixin):
 
     serialize_rules = ("-calendar",)
 
-    id = db.Column(db.UUID(as_uuid=True), primary_key=True, default=uuid4)
+    id = db.Column(
+        db.UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
     calendar_id = db.Column(
-        db.Integer, db.ForeignKey("calendars.id", ondelete="CASCADE")
+        db.UUID(as_uuid=True),
+        db.ForeignKey(
+            "calendars.id",
+            ondelete="CASCADE",
+        ),
     )
     name = db.Column(db.String, nullable=False)
     description = db.Column(db.String)
@@ -29,14 +37,23 @@ class Task(db.Model, SerializerMixin):
 
     serialize_rules = ("-calendar",)
 
-    id = db.Column(db.UUID(as_uuid=True), primary_key=True, default=uuid4)
-    calendar_id = db.Column(
-        db.Integer, db.ForeignKey("calendars.id", ondelete="CASCADE")
+    id = db.Column(
+        db.UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
     )
     title = db.Column(db.String, nullable=False)
     description = db.Column(db.String)
     date = db.Column(db.String, nullable=False)
     status = db.Column(db.Integer, nullable=False)
+
+    calendar_id = db.Column(
+        db.UUID(as_uuid=True),
+        db.ForeignKey(
+            "calendars.id",
+            ondelete="CASCADE",
+        ),
+    )
 
     calendar = db.relationship("Calendar", back_populates="tasks")
 
@@ -50,25 +67,46 @@ class Invite(db.Model, SerializerMixin):
         "-receiver",
     )
 
-    id = db.Column(db.UUID(as_uuid=True), primary_key=True, default=uuid4)
-    sender_email = db.Column(
-        db.String, db.ForeignKey("users.email", ondelete="CASCADE")
-    )
-    receiver_email = db.Column(
-        db.String, db.ForeignKey("users.email", ondelete="CASCADE")
+    id = db.Column(
+        db.UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
     )
     status = db.Column(db.String, nullable=False)
     sent_at = db.Column(db.String, nullable=False)
     set_permissions = db.Column(db.String, nullable=False)
     recipient_name = db.Column(db.String, nullable=False)
     calendar_name = db.Column(db.String, nullable=False)
-    calendar_id = db.Column(db.Integer, nullable=False)
+    active = db.Column(db.Integer, nullable=False)
+    calendar_id = db.Column(
+        db.UUID(as_uuid=True),
+        db.ForeignKey("calendars.id"),
+        nullable=False,
+    )
+    sender_email = db.Column(
+        db.String,
+        db.ForeignKey(
+            "users.email",
+            ondelete="CASCADE",
+        ),
+    )
+    receiver_email = db.Column(
+        db.String,
+        db.ForeignKey(
+            "users.email",
+            ondelete="CASCADE",
+        ),
+    )
 
     sender = db.relationship(
-        "User", foreign_keys=[sender_email], back_populates="sent_invites"
+        "User",
+        foreign_keys=[sender_email],
+        back_populates="sent_invites",
     )
     receiver = db.relationship(
-        "User", foreign_keys=[receiver_email], back_populates="received_invites"
+        "User",
+        foreign_keys=[receiver_email],
+        back_populates="received_invites",
     )
 
 
@@ -81,19 +119,48 @@ class Collaboration(db.Model, SerializerMixin):
         "-guest",
     )
 
-    id = db.Column(db.UUID(as_uuid=True), primary_key=True, default=uuid4)
+    id = db.Column(
+        db.UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
     permissions = db.Column(db.String, nullable=False)
-    owner_email = db.Column(db.String, db.ForeignKey("users.email", ondelete="CASCADE"))
-    guest_email = db.Column(db.String, db.ForeignKey("users.email", ondelete="CASCADE"))
-    calendar_id = db.Column(db.UUID(as_uuid=True), db.ForeignKey("calendars.id"))
+    owner_email = db.Column(
+        db.String,
+        db.ForeignKey(
+            "users.email",
+            ondelete="CASCADE",
+        ),
+    )
+    guest_email = db.Column(
+        db.String,
+        db.ForeignKey(
+            "users.email",
+            ondelete="CASCADE",
+        ),
+    )
+    calendar_id = db.Column(
+        db.UUID(as_uuid=True),
+        db.ForeignKey(
+            "calendars.id",
+            ondelete="CASCADE",
+        ),
+    )
     owner = db.relationship(
-        "User", foreign_keys=[owner_email], back_populates="owned_collaborations"
+        "User",
+        foreign_keys=[owner_email],
+        back_populates="owned_collaborations",
     )
     guest = db.relationship(
-        "User", foreign_keys=[guest_email], back_populates="guest_collaborations"
+        "User",
+        foreign_keys=[guest_email],
+        back_populates="guest_collaborations",
     )
 
-    calendar = db.relationship("Calendar", back_populates="collaborations")
+    calendar = db.relationship(
+        "Calendar",
+        back_populates="collaborations",
+    )
 
 
 class Calendar(db.Model, SerializerMixin):
@@ -107,7 +174,11 @@ class Calendar(db.Model, SerializerMixin):
         "-collaborations.calendar",
     )
 
-    id = db.Column(db.UUID(as_uuid=True), primary_key=True, default=uuid4)
+    id = db.Column(
+        db.UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
     user_id = db.Column(
         db.UUID(as_uuid=True),
         db.ForeignKey("users.id", ondelete="CASCADE"),
@@ -123,10 +194,14 @@ class Calendar(db.Model, SerializerMixin):
         cascade="all, delete, delete-orphan",
     )
     events = db.relationship(
-        "Event", back_populates="calendar", cascade="all, delete, delete-orphan"
+        "Event",
+        back_populates="calendar",
+        cascade="all, delete, delete-orphan",
     )
     tasks = db.relationship(
-        "Task", back_populates="calendar", cascade="all, delete, delete-orphan"
+        "Task",
+        back_populates="calendar",
+        cascade="all, delete, delete-orphan",
     )
 
 
@@ -141,7 +216,11 @@ class User(db.Model, SerializerMixin):
         "-guest_collaborations.guest",
     )
 
-    id = db.Column(db.UUID(as_uuid=True), primary_key=True, default=uuid4)
+    id = db.Column(
+        db.UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
 
     first_name = db.Column(db.String, nullable=False)
     last_name = db.Column(db.String, nullable=False)

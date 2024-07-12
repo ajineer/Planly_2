@@ -1,4 +1,4 @@
-from models import User, Calendar, Invite, Event, Task, UserCalendar
+from models import User, Calendar, Invite, Event, Task, Collaboration
 from config import db, app
 
 if __name__ == "__main__":

@@ -7,11 +7,10 @@ from controllers import (
     CalendarController,
     CalendarControllerById,
     EventController,
-    EventControllerById,
     TaskController,
-    TaskControllerById,
     InviteController,
-    # InviteControllerById,
+    GuestTaskController,
+    CollaborationController,
 )
 
 api.add_resource(Signup, "/signup", endpoint="signup")
@@ -21,11 +20,10 @@ api.add_resource(Logout, "/logout", endpoint="logout")
 api.add_resource(CalendarController, "/calendars", endpoint="calendars")
 api.add_resource(CalendarControllerById, "/calendars/<int:calendar_id>")
 api.add_resource(InviteController, "/invites", endpoint="invites")
-# api.add_resource(InviteControllerById, "/invites/<int:invite_id>")
 api.add_resource(TaskController, "/tasks", endpoint="tasks")
-api.add_resource(TaskControllerById, "/task/<int:task_id>")
 api.add_resource(EventController, "/events", endpoint="events")
-api.add_resource(EventControllerById, "/events/<int:event_id>")
+api.add_resource(GuestTaskController, "/guest_tasks", endpoint="guest_tasks")
+api.add_resource(CollaborationController, "/collaborations", endpoint="collaborations")
 
 
 @app.route("/")
