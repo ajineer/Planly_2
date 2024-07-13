@@ -10,6 +10,25 @@ import jwt
 from utils import decode_token, error_messages, success_messages
 from uuid import UUID
 
+### save just in case:
+# if not session.get("user_token"):
+#     return {"error": error_messages[401]}, 401
+# email, user_id = decode_token(session["user_token"])
+# if not email or not user_id:
+#     return {"error": error_messages[401]}, 401
+
+
+def token_required(func):
+    def wrapper(*args, **kwargs):
+        if not session.get("user_token"):
+            return {"error": error_messages[401]}, 401
+        email, user_id = decode_token(session["user_token"])
+        if not email or not user_id:
+            return {"error": error_messages[401]}, 401
+        return func(*args, email, user_id, **kwargs)
+
+    return wrapper
+
 
 class Signup(Resource):
 
@@ -76,12 +95,8 @@ class Login(Resource):
 
 class CheckSession(Resource):
 
-    def get(self):
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
-        email, user_id = decode_token(session["user_token"])
-        if not email or not user_id:
-            return {"error": error_messages[401]}, 401
+    @token_required
+    def get(self, email, user_id):
         user = User.query.filter(User.id == user_id).first()
         if not user:
             return {"error": error_messages[404]}, 404
@@ -99,12 +114,8 @@ class Logout(Resource):
 
 class CalendarController(Resource):
 
-    def get(self):
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
-        email, user_id = decode_token(session["user_token"])
-        if not user_id:
-            return {"error": error_messages[401]}, 401
+    @token_required
+    def get(self, email, user_id):
         calendars = Calendar.query.filter(Calendar.user_id == user_id).all()
         if not calendars:
             return {"error": error_messages[404]}, 404
@@ -119,12 +130,8 @@ class CalendarController(Resource):
             for c in calendars
         ], 200
 
-    def post(self):
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
-        email, user_id = decode_token(session["user_token"])
-        if not user_id:
-            return {"error": error_messages[401]}, 401
+    @token_required
+    def post(self, email, user_id):
         data = request.get_json()
         if not data:
             return {"error": error_messages[400]}, 400
@@ -147,13 +154,9 @@ class CalendarController(Resource):
 
 class CalendarControllerById(Resource):
 
-    def get(self, calendar_string_id):
+    @token_required
+    def get(self, email, user_id, calendar_string_id):
 
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
-        email, user_id = decode_token(session["user_token"])
-        if not user_id:
-            return {"error": error_messages[401]}, 401
         calendar_id = UUID(calendar_string_id)
         if not calendar_id:
             return {"error": error_messages[400]}, 400
@@ -164,13 +167,9 @@ class CalendarControllerById(Resource):
             return {"error": error_messages[404]}, 404
         return calendar.to_dict(), 200
 
-    def patch(self, calendar_string_id):
+    @token_required
+    def patch(self, email, user_id, calendar_string_id):
 
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
-        email, user_id = decode_token(session["user_token"])
-        if not user_id:
-            return {"error": error_messages[401]}, 401
         calendar_id = UUID(calendar_string_id)
         if not calendar_id:
             return {"error": error_messages[400]}, 400
@@ -198,13 +197,9 @@ class CalendarControllerById(Resource):
             db.session.rollback()
             return {"error": error_messages[500]}, 500
 
-    def delete(self, calendar_string_id):
+    @token_required
+    def delete(self, email, user_id, calendar_string_id):
 
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
-        email, user_id = decode_token(session["user_token"])
-        if not user_id:
-            return {"error": error_messages[401]}, 401
         calendar_id = UUID(calendar_string_id)
         if not calendar_id:
             return {"error": error_messages[400]}, 400
@@ -226,9 +221,8 @@ class CalendarControllerById(Resource):
 
 class GuestCalendarControllerById(CalendarControllerById):
 
-    def patch(self, calendar_string_id):
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
+    @token_required
+    def patch(self, email, user_id, calendar_string_id):
         calendar_id = UUID(calendar_string_id)
         if not calendar_id:
             return {"error": error_messages[400]}, 400
@@ -244,9 +238,8 @@ class GuestCalendarControllerById(CalendarControllerById):
             return {"error": error_messages[401]}, 401
         return super.patch()
 
-    def delete(self, calendar_string_id):
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
+    @token_required
+    def delete(self, email, user_id, calendar_string_id):
         calendar_id = UUID(calendar_string_id)
         if not calendar_id:
             return {"error": error_messages[400]}, 400
@@ -265,9 +258,8 @@ class GuestCalendarControllerById(CalendarControllerById):
 
 class EventController(Resource):
 
-    def post(self):
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
+    @token_required
+    def post(self, email, user_id):
         data = request.get_json()
         if not data:
             return {"error": error_messages[400]}, 400
@@ -297,9 +289,8 @@ class EventController(Resource):
 
 class GuestEventController(EventController):
 
-    def post(self, event_string_id):
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
+    @token_required
+    def post(self, email, user_id, event_string_id):
         event_id = UUID(event_string_id)
         if not event_id:
             return {"error": error_messages[400]}, 400
@@ -318,9 +309,8 @@ class GuestEventController(EventController):
 
 class EventControllerById(Resource):
 
-    def patch(self, event_string_id):
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
+    @token_required
+    def patch(self, email, user_id, event_string_id):
         event_id = UUID(event_string_id)
         if not event_id:
             return {"error": error_messages[400]}, 400
@@ -352,9 +342,8 @@ class EventControllerById(Resource):
             db.session.rollback()
             return {"error": error_messages[500]}, 500
 
-    def delete(self, event_string_id):
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
+    @token_required
+    def delete(self, email, user_id, event_string_id):
         event_id = UUID(event_string_id)
         if not event_id:
             return {"error": error_messages[400]}, 400
@@ -377,9 +366,8 @@ class EventControllerById(Resource):
 
 class GuestEventControllerById(EventControllerById):
 
-    def patch(self, event_string_id):
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
+    @token_required
+    def patch(self, email, user_id, event_string_id):
         event_id = UUID(event_string_id)
         if not event_id:
             return {"error": error_messages[400]}, 400
@@ -395,9 +383,8 @@ class GuestEventControllerById(EventControllerById):
             return {"error": error_messages[401]}, 401
         return super.patch()
 
-    def delete(self, event_string_id):
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
+    @token_required
+    def delete(self, email, user_id, event_string_id):
         event_id = UUID(event_string_id)
         if not event_id:
             return {"error": error_messages[400]}, 400
@@ -416,9 +403,8 @@ class GuestEventControllerById(EventControllerById):
 
 class TaskController(Resource):
 
-    def post(self):
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
+    @token_required
+    def post(self, email, user_id):
         data = request.get_json()
         if not data:
             return {"error": error_messages[400]}, 400
@@ -449,9 +435,8 @@ class TaskController(Resource):
 
 class GuestTaskController(TaskController):
 
-    def post(self, task_string_id):
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
+    @token_required
+    def post(self, email, user_id, task_string_id):
         task_id = UUID(task_string_id)
         if not task_id:
             return {"error": error_messages[400]}, 400
@@ -470,9 +455,8 @@ class GuestTaskController(TaskController):
 
 class TaskControllerById(Resource):
 
-    def patch(self, task_string_id):
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
+    @token_required
+    def patch(self, email, user_id, task_string_id):
         task_id = UUID(task_string_id)
         if not task_id:
             return {"error": error_messages[400]}, 400
@@ -502,9 +486,9 @@ class TaskControllerById(Resource):
             db.session.rollback()
             return {"error": error_messages[500]}, 500
 
-    def delete(self, task_string_id):
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
+    @token_required
+    def delete(self, email, user_id, task_string_id):
+
         task_id = UUID(task_string_id)
         if not task_id:
             return {"error": error_messages[400]}, 400
@@ -524,9 +508,9 @@ class TaskControllerById(Resource):
 
 class GuestTaskControllerById(TaskControllerById):
 
-    def patch(self, task_string_id):
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
+    @token_required
+    def patch(self, email, user_id, task_string_id):
+
         task_id = UUID(task_string_id)
         if not task_id:
             return {"error": error_messages[400]}, 400
@@ -542,9 +526,9 @@ class GuestTaskControllerById(TaskControllerById):
             return {"error": error_messages[401]}, 401
         return super.patch()
 
-    def delete(self, task_string_id):
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
+    @token_required
+    def delete(self, email, user_id, task_string_id):
+
         task_id = UUID(task_string_id)
         if not task_id:
             return {"error": error_messages[400]}, 400
@@ -563,9 +547,8 @@ class GuestTaskControllerById(TaskControllerById):
 
 class InviteController(Resource):
 
-    def get(self):
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
+    @token_required
+    def get(self, email, user_id):
         email, user_id = decode_token(session["user_token"])
         if not user_id or not email:
             return {"error": error_messages[401]}, 401
@@ -577,9 +560,8 @@ class InviteController(Resource):
             return {"error": error_messages[404]}, 404
         return [i.to_dict() for i in invites], 200
 
-    def post(self):
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
+    @token_required
+    def post(self, email, user_id):
         email, user_id = decode_token(session["user_token"])
         if not email or not user_id:
             return {"error": error_messages[401]}, 401
@@ -636,9 +618,8 @@ class InviteController(Resource):
 
 class InviteControllerById(Resource):
 
-    def patch(self, invite_string_id):
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
+    @token_required
+    def patch(self, email, user_id, invite_string_id):
         data = request.get_json()
         if not data:
             return {"error": error_messages[400]}, 400
@@ -684,9 +665,8 @@ class InviteControllerById(Resource):
                 db.session.rollback()
                 return {"error": error_messages[500]}, 500
 
-    def delete(self, invite_string_id):
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
+    @token_required
+    def delete(self, email, user_id, invite_string_id):
         invite_id = UUID(invite_string_id)
         if not invite_id:
             return {"error": error_messages[400]}, 400
@@ -706,10 +686,8 @@ class InviteControllerById(Resource):
 
 class CollaborationController(Resource):
 
-    def get(self):
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
-        email, user_id = decode_token(session["user_token"])
+    @token_required
+    def get(self, email, user_id):
         collaborations = Collaboration.query.filter(
             Collaboration.owner_email == email
         ).all()
@@ -720,9 +698,9 @@ class CollaborationController(Resource):
 
 class CollaborationControllerById(Resource):
 
-    def patch(self, collaboration_string_id):
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
+    @token_required
+    def patch(self, email, user_id, collaboration_string_id):
+
         email, user_id = decode_token(session["user_token"])
         if not email or not user_id:
             return {"error": error_messages[401]}, 401
@@ -753,9 +731,8 @@ class CollaborationControllerById(Resource):
             db.session.rollback()
             return {"error": error_messages[500]}, 500
 
-    def delete(self, collaboration_string_id):
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
+    @token_required
+    def delete(self, email, user_id, collaboration_string_id):
         collaboration_id = UUID(collaboration_string_id)
         if not collaboration_id:
             return {"error": error_messages[400]}, 400
