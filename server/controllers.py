@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
 import jwt
-from utils import decode_token, error_messages, success_messages
+from utils import token_required, decode_token, error_messages, success_messages
 from uuid import UUID
 
 ### save just in case:
@@ -16,18 +16,6 @@ from uuid import UUID
 # email, user_id = decode_token(session["user_token"])
 # if not email or not user_id:
 #     return {"error": error_messages[401]}, 401
-
-
-def token_required(func):
-    def wrapper(*args, **kwargs):
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
-        email, user_id = decode_token(session["user_token"])
-        if not email or not user_id:
-            return {"error": error_messages[401]}, 401
-        return func(*args, email, user_id, **kwargs)
-
-    return wrapper
 
 
 class Signup(Resource):
@@ -263,11 +251,11 @@ class EventController(Resource):
         data = request.get_json()
         if not data:
             return {"error": error_messages[400]}, 400
-        calendar_id = (data["calendar_id"],)
-        name = (data["name"],)
-        description = (data["description"],)
-        start = (data["start"],)
-        end = (data["end"],)
+        calendar_id = data["calendar_id"]
+        name = data["name"]
+        description = data["description"]
+        start = data["start"]
+        end = data["end"]
         if not calendar_id or not name or not description or not start or not end:
             return {"error": error_messages[400]}, 400
         try:
@@ -569,7 +557,13 @@ class InviteController(Resource):
         data = request.get_json()
         if not data:
             return {"error": error_messages[400]}, 400
-        calendar = Calendar.query.filter(Calendar.id == UUID(data["calendar_id"]))
+        receiver_email = data["receiver_email"]
+        recipient_name = data["recipient_name"]
+        calendar_name = data["calendar_name"]
+        calendar_id = UUID(data["calendar_id"])
+        sent_at = data["sent_at"]
+        set_permissions = data["set_permissions"]
+        calendar = Calendar.query.filter(Calendar.id == calendar_id)
         invite = Invite.query.filter(
             Invite.sender_email == email
             and Invite.receiver_email == data["reciever_email"]
@@ -579,12 +573,12 @@ class InviteController(Resource):
             return {"error": error_messages[409]}, 409
         if not calendar:
             return {"error": error_messages[404]}, 404
-        receiver_email = data["receiver_email"]
-        recipient_name = data["recipient_name"]
-        calendar_name = data["calendar_name"]
-        calendar_id = UUID(data["calendar_id"])
-        sent_at = data["sent_at"]
-        set_permissions = data["set_permissions"]
+        receiver_email = receiver_email
+        recipient_name = recipient_name
+        calendar_name = calendar_name
+        calendar_id = calendar_id
+        sent_at = sent_at
+        set_permissions = set_permissions
         if (
             not receiver_email
             or not recipient_name
@@ -627,43 +621,24 @@ class InviteControllerById(Resource):
         if not invite_id:
             return {"error": error_messages[400]}, 400
         status = data["status"]
-        if not invite_id or not status:
+        if not status:
             return {"error": error_messages[400]}, 400
         invite = Invite.query.filter(Invite.id == invite_id).first()
         if not invite:
             return {"error": error_messages[404]}, 404
         if not invite.active:
             return {"error": error_messages[400]}, 400
-        if status == "accepted":
-            try:
-                new_collaboration = Collaboration(
-                    permissions=invite.set_permissions,
-                    owner_email=invite.sender_email,
-                    guest_email=invite.receiver_email,
-                    calendar_id=invite.calendar_id,
-                )
-                setattr(invite, "status", status)
-                setattr(invite, "active", 0)
-                db.session.add(invite)
-                db.session.add(new_collaboration)
-                db.session.commit()
-                return new_collaboration.to_dict(rules=("calendar",)), 201
-            except IntegrityError:
-                return {"error": error_messages[422]}, 422
-            except SQLAlchemyError:
-                db.session.rollback()
-                return {"error": error_messages[500]}, 500
-        elif status == "declined":
-            try:
-                setattr(invite, "active", 0)
-                db.session.add(invite)
-                db.session.commit()
-                return {"Message": "Invite declined"}, 204
-            except IntegrityError:
-                return {"error": error_messages[422]}, 422
-            except SQLAlchemyError:
-                db.session.rollback()
-                return {"error": error_messages[500]}, 500
+        try:
+            setattr(invite, "status", status)
+            setattr(invite, "active", 0)
+            db.session.add(invite)
+            db.session.commit()
+            return {"message": success_messages[202]}, 202
+        except IntegrityError:
+            return {"error": error_messages[422]}, 422
+        except SQLAlchemyError:
+            db.session.rollback()
+            return {"error": error_messages[500]}, 500
 
     @token_required
     def delete(self, email, user_id, invite_string_id):
@@ -685,6 +660,45 @@ class InviteControllerById(Resource):
 
 
 class CollaborationController(Resource):
+
+    @token_required
+    def post(self, email, user_id):
+        data = request.get_json()
+        if not data:
+            return {"error": error_messages[400]}, 400
+        calendar_id = UUID(data["calendar_id"])
+        invite = Invite.query.filter(
+            Invite.calendar_id == calendar_id and Invite.receiver_email == email
+        ).first()
+        if not invite:
+            return {"error": error_messages[400]}, 400
+        if invite.status != "accepted":
+            return {"error": error_messages[401]}, 401
+        set_permissions = invite.set_permissions
+        sender_email = data["sender_email"]
+        receiver_email = data["receiver_email"]
+        if (
+            not set_permissions
+            or not sender_email
+            or not receiver_email
+            or not calendar_id
+        ):
+            return {"error": error_messages[400]}, 400
+        try:
+            new_collaboration = Collaboration(
+                permissions=set_permissions,
+                owner_email=sender_email,
+                guest_email=receiver_email,
+                calendar_id=calendar_id,
+            )
+            db.session.add(new_collaboration)
+            db.session.commit()
+            return new_collaboration.to_dict(rules=("calendar",)), 201
+        except IntegrityError:
+            return {"error": error_messages[422]}, 422
+        except SQLAlchemyError:
+            db.session.rollback()
+            return {"error": error_messages[500]}, 500
 
     @token_required
     def get(self, email, user_id):

@@ -2,6 +2,7 @@ import jwt
 from dotenv import load_dotenv
 import os
 from uuid import UUID
+from flask import session
 
 
 def decode_token(token):
@@ -19,6 +20,18 @@ def decode_token(token):
         return None, None
 
 
+def token_required(func):
+    def wrapper(*args, **kwargs):
+        if not session.get("user_token"):
+            return {"error": error_messages[401]}, 401
+        email, user_id = decode_token(session["user_token"])
+        if not email or not user_id:
+            return {"error": error_messages[401]}, 401
+        return func(*args, email, user_id, **kwargs)
+
+    return wrapper
+
+
 error_messages = {
     400: "Invalid request parameters",
     401: "Unauthorized",
@@ -28,4 +41,4 @@ error_messages = {
     500: "Internal server error",
 }
 
-success_messages = {200: "OK", 201: "Created", 204: "No Content"}
+success_messages = {200: "OK", 202: "updated", 201: "Created", 204: "No Content"}
