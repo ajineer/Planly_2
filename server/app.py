@@ -18,6 +18,8 @@ from controllers import (
     InviteController,
     InviteControllerById,
     CollaborationController,
+    CollaborationControllerById,
+    GuestCollaborationController,
 )
 
 api.add_resource(Signup, "/signup", endpoint="signup")
@@ -46,6 +48,14 @@ api.add_resource(InviteController, "/invites", endpoint="invites")
 api.add_resource(InviteControllerById, "/invites/<string:invite_string_id>")
 
 api.add_resource(CollaborationController, "/collaborations", endpoint="collaborations")
+api.add_resource(
+    GuestCollaborationController,
+    "/guest_collaborations",
+    endpoint="guest_collaborations",
+)
+api.add_resource(
+    CollaborationControllerById, "/collaborations/<string:collaboration_string_id>"
+)
 
 
 @app.route("/")

@@ -26,3 +26,4 @@ instance
 *.njsproj
 *.sln
 *.sw?
+__pycache__

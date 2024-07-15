@@ -7,8 +7,9 @@ from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
 import jwt
-from utils import token_required, decode_token, error_messages, success_messages
+from utils import token_required, error_messages, success_messages
 from uuid import UUID
+import jwt
 
 ### save just in case:
 # if not session.get("user_token"):
@@ -65,8 +66,8 @@ class Login(Resource):
             return {"error": error_messages[401]}, 401
 
         token = self.generate_token(user.email, str(user.id))
-        session["user_token"] = token
-        return {"message": success_messages[200]}, 200
+        # session["user_token"] = token
+        return {"message": success_messages[200], "token": str(token)}, 200
 
     def generate_token(self, email, id):
 
@@ -88,16 +89,23 @@ class CheckSession(Resource):
         user = User.query.filter(User.id == user_id).first()
         if not user:
             return {"error": error_messages[404]}, 404
-        return (user.to_dict(), 200)
+        return (
+            user.to_dict(
+                rules=(
+                    "sent_invites",
+                    "received_invites",
+                )
+            ),
+            200,
+        )
 
 
 class Logout(Resource):
 
-    def delete(self):
-        if not session.get("user_token"):
-            return {"error": error_messages[401]}, 401
-        session["user_token"] = None
-        return {"message": success_messages[204]}, 204
+    @token_required
+    def delete(self, email, user_id):
+        token = None
+        return {"message", success_messages[204], str(token)}, 204
 
 
 class CalendarController(Resource):
@@ -130,8 +138,8 @@ class CalendarController(Resource):
         try:
             new_calendar = Calendar(
                 user_id=user_id,
-                name=data["name"],
-                description=data["description"],
+                name=name,
+                description=description,
             )
             db.session.add(new_calendar)
             db.session.commit()
@@ -537,22 +545,16 @@ class InviteController(Resource):
 
     @token_required
     def get(self, email, user_id):
-        email, user_id = decode_token(session["user_token"])
-        if not user_id or not email:
-            return {"error": error_messages[401]}, 401
         user = User.query.filter(User.id == user_id).first()
         if not user:
             return {"error": error_messages[404]}, 404
-        invites = Invite.query.filter(Invite.receiver_email == user.email).all()
+        invites = Invite.query.filter(Invite.sender_email == user.email).all()
         if not invites:
             return {"error": error_messages[404]}, 404
         return [i.to_dict() for i in invites], 200
 
     @token_required
     def post(self, email, user_id):
-        email, user_id = decode_token(session["user_token"])
-        if not email or not user_id:
-            return {"error": error_messages[401]}, 401
         user = User.query.filter(User.id == user_id).first()
         data = request.get_json()
         if not data:
@@ -662,6 +664,15 @@ class InviteControllerById(Resource):
 class CollaborationController(Resource):
 
     @token_required
+    def get(self, email, user_id):
+        collaborations = Collaboration.query.filter(
+            Collaboration.owner_email == email
+        ).all()
+        if not collaborations:
+            return {"error": error_messages[404]}, 404
+        return [c.to_dict() for c in collaborations], 200
+
+    @token_required
     def post(self, email, user_id):
         data = request.get_json()
         if not data:
@@ -675,8 +686,8 @@ class CollaborationController(Resource):
         if invite.status != "accepted":
             return {"error": error_messages[401]}, 401
         set_permissions = invite.set_permissions
-        sender_email = data["sender_email"]
-        receiver_email = data["receiver_email"]
+        sender_email = invite.sender_email
+        receiver_email = email
         if (
             not set_permissions
             or not sender_email
@@ -693,21 +704,40 @@ class CollaborationController(Resource):
             )
             db.session.add(new_collaboration)
             db.session.commit()
-            return new_collaboration.to_dict(rules=("calendar",)), 201
+            return (
+                new_collaboration.to_dict(
+                    rules=(
+                        "calendar",
+                        "-owner_email",
+                    )
+                ),
+                201,
+            )
         except IntegrityError:
             return {"error": error_messages[422]}, 422
         except SQLAlchemyError:
             db.session.rollback()
             return {"error": error_messages[500]}, 500
 
+
+class GuestCollaborationController(Resource):
+
     @token_required
     def get(self, email, user_id):
         collaborations = Collaboration.query.filter(
-            Collaboration.owner_email == email
+            Collaboration.guest_email == email
         ).all()
         if not collaborations:
             return {"error": error_messages[404]}, 404
-        return [c.to_dict() for c in collaborations], 200
+        return [
+            c.to_dict(
+                rules=(
+                    "calendar",
+                    "-guest_email",
+                )
+            )
+            for c in collaborations
+        ], 200
 
 
 class CollaborationControllerById(Resource):
@@ -715,9 +745,6 @@ class CollaborationControllerById(Resource):
     @token_required
     def patch(self, email, user_id, collaboration_string_id):
 
-        email, user_id = decode_token(session["user_token"])
-        if not email or not user_id:
-            return {"error": error_messages[401]}, 401
         collaboration_id = UUID(collaboration_string_id)
         if not collaboration_id:
             return {"error": error_messages[400]}, 400

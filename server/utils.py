@@ -2,7 +2,8 @@ import jwt
 from dotenv import load_dotenv
 import os
 from uuid import UUID
-from flask import session
+from flask import session, request
+import json
 
 
 def decode_token(token):
@@ -16,17 +17,33 @@ def decode_token(token):
         return email, user_id
     except jwt.ExpiredSignatureError:
         return None, None
-    except jwt.InvalidTokenError:
-        return None, None
+    except jwt.InvalidTokenError as e:
+        return None, {"error": f"{e}"}
+
+
+# def token_required(func):
+#     def wrapper(*args, **kwargs):
+#         if not session.get("user_token"):
+#             return {"error": error_messages[401]}, 401
+#         email, user_id = decode_token(session["user_token"])
+#         if not email or not user_id:
+#             return {"error": error_messages[401]}, 401
+#         return func(*args, email, user_id, **kwargs)
+
+#    return wrapper
 
 
 def token_required(func):
     def wrapper(*args, **kwargs):
-        if not session.get("user_token"):
+        token = None
+        if "Authorization" in request.headers:
+            token = request.headers.get("Authorization").split(" ")[1]
+        if not token:
             return {"error": error_messages[401]}, 401
-        email, user_id = decode_token(session["user_token"])
+
+        email, user_id = decode_token(token)
         if not email or not user_id:
-            return {"error": error_messages[401]}, 401
+            return {"error": f"{user_id}, {email}"}, 401
         return func(*args, email, user_id, **kwargs)
 
     return wrapper

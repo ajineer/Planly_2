@@ -171,7 +171,7 @@ class Calendar(db.Model, SerializerMixin):
         "-user",
         "-user_id",
         "-calendar_id",
-        "-collaborations.calendar",
+        "-collaborations",
     )
 
     id = db.Column(
@@ -212,8 +212,8 @@ class User(db.Model, SerializerMixin):
     serialize_rules = (
         "-_password_hash",
         "-calendars",
-        "-owned_collaborations.owner",
-        "-guest_collaborations.guest",
+        "-owned_collaborations",
+        "-guest_collaborations",
     )
 
     id = db.Column(
