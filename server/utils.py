@@ -20,18 +20,6 @@ def decode_token(token):
         return None, {"error": f"{e}"}
 
 
-# def token_required(func):
-#     def wrapper(*args, **kwargs):
-#         if not session.get("user_token"):
-#             return {"error": error_messages[401]}, 401
-#         email, user_id = decode_token(session["user_token"])
-#         if not email or not user_id:
-#             return {"error": error_messages[401]}, 401
-#         return func(*args, email, user_id, **kwargs)
-
-#    return wrapper
-
-
 def token_required(func):
     def wrapper(*args, **kwargs):
         token = None
@@ -53,13 +41,13 @@ def verify_data(func):
         data = request.get_json()
         if not data:
             return {"error": error_messages[400]}, 400
-        data_items = []
+        data_items = {}
         keys = data.keys()
         for key in keys:
             if not data.get(key):
                 return {"error": error_messages[400]}, 400
             else:
-                data_items.append(data[key])
+                data_items[key] = data[key]
         return func(*args, data_items=data_items, **kwargs)
 
     return wrapper
