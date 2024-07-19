@@ -2,8 +2,7 @@ import jwt
 from dotenv import load_dotenv
 import os
 from uuid import UUID
-from flask import session, request
-import json
+from flask import request
 
 
 def decode_token(token):
@@ -45,6 +44,23 @@ def token_required(func):
         if not email or not user_id:
             return {"error": f"{user_id}, {email}"}, 401
         return func(*args, email, user_id, **kwargs)
+
+    return wrapper
+
+
+def verify_data(func):
+    def wrapper(*args, **kwargs):
+        data = request.get_json()
+        if not data:
+            return {"error": error_messages[400]}, 400
+        data_items = []
+        keys = data.keys()
+        for key in keys:
+            if not data.get(key):
+                return {"error": error_messages[400]}, 400
+            else:
+                data_items.append(data[key])
+        return func(*args, data_items=data_items, **kwargs)
 
     return wrapper
 

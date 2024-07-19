@@ -170,7 +170,6 @@ class Calendar(db.Model, SerializerMixin):
     serialize_rules = (
         "-user",
         "-user_id",
-        "-calendar_id",
         "-collaborations",
     )
 

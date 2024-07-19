@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
 import jwt
-from utils import token_required, error_messages, success_messages
+from utils import verify_data, token_required, error_messages, success_messages
 from uuid import UUID
 import jwt
 
@@ -17,6 +17,15 @@ import jwt
 # email, user_id = decode_token(session["user_token"])
 # if not email or not user_id:
 #     return {"error": error_messages[401]}, 401
+
+
+class CheckData:
+
+    def verify_parameters(self, paramsArr):
+        for param in paramsArr:
+            if not param:
+                return {"error": error_messages[400]}, 400
+        return True, paramsArr
 
 
 class Signup(Resource):
@@ -49,18 +58,12 @@ class Signup(Resource):
             return {"error": error_messages[422]}, 422
 
 
-class Login(Resource):
+class Login(Resource, CheckData):
 
-    def post(self):
+    @verify_data
+    def post(self, data_items):
 
-        data = request.get_json()
-        if not data:
-            return {"error": error_messages[400]}, 400
-
-        email = data["email"]
-        password = data["password"]
-        if not password or not email:
-            return {"error": error_messages[400]}, 400
+        email, password = data_items
         user = User.query.filter(User.email == email).first()
         if not user or not user.authenticate(password) or not user.email or not user.id:
             return {"error": error_messages[401]}, 401
@@ -108,33 +111,19 @@ class Logout(Resource):
         return {"message", success_messages[204], str(token)}, 204
 
 
-class CalendarController(Resource):
+class CalendarController(Resource, CheckData):
 
     @token_required
     def get(self, email, user_id):
         calendars = Calendar.query.filter(Calendar.user_id == user_id).all()
         if not calendars:
             return {"error": error_messages[404]}, 404
-        return [
-            c.to_dict(
-                rules=(
-                    "tasks",
-                    "events",
-                    "collaborations",
-                )
-            )
-            for c in calendars
-        ], 200
+        return [c.to_dict() for c in calendars], 200
 
     @token_required
-    def post(self, email, user_id):
-        data = request.get_json()
-        if not data:
-            return {"error": error_messages[400]}, 400
-        name = data["name"]
-        description = data["description"]
-        if not name or not description:
-            return {"error": error_messages[400]}, 400
+    @verify_data
+    def post(self, email, user_id, data_items):
+        name, description = data_items
         try:
             new_calendar = Calendar(
                 user_id=user_id,
@@ -146,9 +135,12 @@ class CalendarController(Resource):
             return new_calendar.to_dict(), 201
         except IntegrityError:
             return {"error": error_messages[422]}, 422
+        except SQLAlchemyError:
+            db.session.rollback()
+            return {"error": error_messages[500]}, 500
 
 
-class CalendarControllerById(Resource):
+class CalendarControllerById(Resource, CheckData):
 
     @token_required
     def get(self, email, user_id, calendar_string_id):
@@ -164,29 +156,21 @@ class CalendarControllerById(Resource):
         return calendar.to_dict(), 200
 
     @token_required
-    def patch(self, email, user_id, calendar_string_id):
-
+    @verify_data
+    def patch(self, email, user_id, calendar_string_id, data_items):
+        if not calendar_string_id:
+            return {"error": error_messages[400]}, 400
         calendar_id = UUID(calendar_string_id)
-        if not calendar_id:
-            return {"error": error_messages[400]}, 400
-        data = request.get_json()
-        if not data:
-            return {"error": error_messages[400]}, 400
-        name = data["name"]
-        description = data["description"]
-        if not name or not description:
-            return {"error": error_messages[400]}, 400
-        calendar = Calendar.query.filter(
-            Calendar.id == calendar_id and Calendar.user_id == user_id
-        ).first()
+        name, description = data_items
+        calendar = Calendar.query.filter(Calendar.id == calendar_id).first()
         if not calendar:
-            return {"error": error_messages[404]}, 404
+            return {"error": f"Calendar {error_messages[404]}"}, 404
         try:
-            setattr(calendar, "name", data["name"])
-            setattr(calendar, "description", data["description"])
+            setattr(calendar, "name", name)
+            setattr(calendar, "description", description)
             db.session.add(calendar)
             db.session.commit()
-            return calendar.to_dict(rules=("participant.profiles")), 202
+            return calendar.to_dict(), 202
         except IntegrityError:
             return {"error": error_messages[409]}, 409
         except SQLAlchemyError:
@@ -196,9 +180,9 @@ class CalendarControllerById(Resource):
     @token_required
     def delete(self, email, user_id, calendar_string_id):
 
-        calendar_id = UUID(calendar_string_id)
-        if not calendar_id:
+        if not calendar_string_id:
             return {"error": error_messages[400]}, 400
+        calendar_id = UUID(calendar_string_id)
         calendar = Calendar.query.filter(
             Calendar.id == calendar_id and Calendar.user_id == user_id
         ).first()
@@ -219,52 +203,32 @@ class GuestCalendarControllerById(CalendarControllerById):
 
     @token_required
     def patch(self, email, user_id, calendar_string_id):
-        calendar_id = UUID(calendar_string_id)
-        if not calendar_id:
+        if not calendar_string_id:
             return {"error": error_messages[400]}, 400
+        calendar_id = UUID(calendar_string_id)
         calendar = Calendar.query.filter(Calendar.id == calendar_id).first()
         if not calendar:
             return {"error": error_messages[404]}, 404
-        collaboration = Collaboration.filter(
+        collaboration = Collaboration.query.filter(
             Collaboration.calendar_id == calendar_id
         ).first()
         if not collaboration:
             return {"error": error_messages[404]}, 404
         if collaboration.permissions != "write":
             return {"error": error_messages[401]}, 401
-        return super.patch()
-
-    @token_required
-    def delete(self, email, user_id, calendar_string_id):
-        calendar_id = UUID(calendar_string_id)
-        if not calendar_id:
-            return {"error": error_messages[400]}, 400
-        calendar = Calendar.query.filter(Calendar.id == calendar_id).first()
-        if not calendar:
-            return {"error": error_messages[404]}, 404
-        collaboration = Collaboration.filter(
-            Collaboration.calendar_id == calendar_id
-        ).first()
-        if not collaboration:
-            return {"error": error_messages[404]}, 404
-        if collaboration.permissions != "write":
-            return {"error": error_messages[401]}, 401
-        return super.delete()
+        return super().patch(calendar_string_id=calendar_string_id)
 
 
 class EventController(Resource):
 
     @token_required
-    def post(self, email, user_id):
-        data = request.get_json()
-        if not data:
-            return {"error": error_messages[400]}, 400
-        calendar_id = data["calendar_id"]
-        name = data["name"]
-        description = data["description"]
-        start = data["start"]
-        end = data["end"]
-        if not calendar_id or not name or not description or not start or not end:
+    @verify_data
+    def post(self, email, user_id, data_items):
+
+        calendar_string_id, name, description, start, end = data_items
+        calendar_id = UUID(calendar_string_id)
+        calendar = Calendar.query.filter(Calendar.id == calendar_id).first()
+        if not calendar:
             return {"error": error_messages[400]}, 400
         try:
             new_event = Event(
@@ -276,11 +240,12 @@ class EventController(Resource):
             )
             db.session.add(new_event)
             db.session.commit()
+            return new_event.to_dict(), 200
         except IntegrityError:
             return {"error": error_messages[422]}, 422
-        except SQLAlchemyError:
+        except SQLAlchemyError as e:
             db.session.rollback()
-            return {"error": error_messages[500]}, 500
+            return {"error": str(e)}, 500
 
 
 class GuestEventController(EventController):
@@ -306,25 +271,16 @@ class GuestEventController(EventController):
 class EventControllerById(Resource):
 
     @token_required
-    def patch(self, email, user_id, event_string_id):
+    @verify_data
+    def patch(self, email, user_id, event_string_id, data_items):
+        if not event_string_id:
+            return {"error": error_messages[400]}, 400
         event_id = UUID(event_string_id)
-        if not event_id:
-            return {"error": error_messages[400]}, 400
-        data = request.get_json()
-        if not data:
-            return {"error": error_messages[400]}, 400
-        name = data["name"]
-        description = data["description"]
-        start = data["start"]
-        end = data["end"]
-        if not name or not description or not start or not end:
-            return {"error": error_messages[400]}, 400
-
         event = Event.query.filter(Event.id == event_id).first()
         if not event:
             return {"error": error_messages[404]}, 404
+        name, description, start, end = data_items
         try:
-            data = request.get_json()
             setattr(event, "name", name)
             setattr(event, "description", description)
             setattr(event, "start", start)
@@ -340,12 +296,9 @@ class EventControllerById(Resource):
 
     @token_required
     def delete(self, email, user_id, event_string_id):
+        if not event_string_id:
+            return {"error": error_messages[400]}, 400
         event_id = UUID(event_string_id)
-        if not event_id:
-            return {"error": error_messages[400]}, 400
-        data = request.get_json()
-        if not data:
-            return {"error": error_messages[400]}, 400
         event = Event.query.filter(Event.id == event_id).first()
         if not event:
             return {"error": error_messages[404]}, 404
@@ -400,16 +353,14 @@ class GuestEventControllerById(EventControllerById):
 class TaskController(Resource):
 
     @token_required
-    def post(self, email, user_id):
-        data = request.get_json()
-        if not data:
+    @verify_data
+    def post(self, email, user_id, data_items):
+        calendar_string_id, title, description, date, status = data_items
+        calendar_id = UUID(calendar_string_id)
+        if not calendar_id:
             return {"error": error_messages[400]}, 400
-        calendar_id = UUID(data["calendar_id"])
-        title = data["title"]
-        description = data["description"]
-        date = data["date"]
-        status = data["status"]
-        if not calendar_id or not title or not description or not date or not status:
+        calendar = Calendar.query.filter(Calendar.id == calendar_id).first()
+        if not calendar:
             return {"error": error_messages[400]}, 400
         try:
             new_task = Task(
@@ -452,19 +403,12 @@ class GuestTaskController(TaskController):
 class TaskControllerById(Resource):
 
     @token_required
-    def patch(self, email, user_id, task_string_id):
+    @verify_data
+    def patch(self, email, user_id, task_string_id, data_items):
+        if not task_string_id:
+            return {"error": error_messages[400]}, 400
         task_id = UUID(task_string_id)
-        if not task_id:
-            return {"error": error_messages[400]}, 400
-        data = request.get_json()
-        if not data:
-            return {"error": error_messages[400]}, 400
-        title = data["title"]
-        description = data["description"]
-        date = data["date"]
-        status = data["status"]
-        if not title or not description or not date or not status:
-            return {"error": error_messages[400]}, 400
+        title, description, date, status = data_items
         task = Task.query.filter(Task.id == task_id).first()
         if not task:
             return {"error": error_messages[404]}, 404
@@ -475,7 +419,7 @@ class TaskControllerById(Resource):
             setattr(task, "status", status)
             db.session.add(task)
             db.session.commit()
-            return task.to_dict(), 204
+            return task.to_dict(), 202
         except IntegrityError:
             return {"error": error_messages[422]}, 422
         except SQLAlchemyError:
@@ -554,42 +498,27 @@ class InviteController(Resource):
         return [i.to_dict() for i in invites], 200
 
     @token_required
-    def post(self, email, user_id):
+    @verify_data
+    def post(self, email, user_id, data_items):
         user = User.query.filter(User.id == user_id).first()
-        data = request.get_json()
-        if not data:
-            return {"error": error_messages[400]}, 400
-        receiver_email = data["receiver_email"]
-        recipient_name = data["recipient_name"]
-        calendar_name = data["calendar_name"]
-        calendar_id = UUID(data["calendar_id"])
-        sent_at = data["sent_at"]
-        set_permissions = data["set_permissions"]
-        calendar = Calendar.query.filter(Calendar.id == calendar_id)
+        (
+            receiver_email,
+            recipient_name,
+            calendar_name,
+            calendar_id,
+            sent_at,
+            set_permissions,
+        ) = data_items
         invite = Invite.query.filter(
             Invite.sender_email == email
-            and Invite.receiver_email == data["reciever_email"]
-            and Invite.calendar_id == data["calendar_id"]
+            and Invite.receiver_email == receiver_email
+            and Invite.calendar_id == calendar_id
         ).first()
         if invite and invite.active:
             return {"error": error_messages[409]}, 409
+        calendar = Calendar.query.filter(Calendar.id == calendar_id)
         if not calendar:
             return {"error": error_messages[404]}, 404
-        receiver_email = receiver_email
-        recipient_name = recipient_name
-        calendar_name = calendar_name
-        calendar_id = calendar_id
-        sent_at = sent_at
-        set_permissions = set_permissions
-        if (
-            not receiver_email
-            or not recipient_name
-            or not calendar_name
-            or not calendar_id
-            or not sent_at
-            or not set_permissions
-        ):
-            return {"error": error_messages[400]}, 400
         try:
             new_invite = Invite(
                 status="pending",
@@ -615,16 +544,12 @@ class InviteController(Resource):
 class InviteControllerById(Resource):
 
     @token_required
-    def patch(self, email, user_id, invite_string_id):
-        data = request.get_json()
-        if not data:
+    @verify_data
+    def patch(self, email, user_id, invite_string_id, data_items):
+        if not invite_string_id:
             return {"error": error_messages[400]}, 400
+        status = data_items
         invite_id = UUID(invite_string_id)
-        if not invite_id:
-            return {"error": error_messages[400]}, 400
-        status = data["status"]
-        if not status:
-            return {"error": error_messages[400]}, 400
         invite = Invite.query.filter(Invite.id == invite_id).first()
         if not invite:
             return {"error": error_messages[404]}, 404
@@ -673,11 +598,10 @@ class CollaborationController(Resource):
         return [c.to_dict() for c in collaborations], 200
 
     @token_required
-    def post(self, email, user_id):
-        data = request.get_json()
-        if not data:
-            return {"error": error_messages[400]}, 400
-        calendar_id = UUID(data["calendar_id"])
+    @verify_data
+    def post(self, email, user_id, data_items):
+        calendar_string_id = data_items
+        calendar_id = UUID(calendar_string_id)
         invite = Invite.query.filter(
             Invite.calendar_id == calendar_id and Invite.receiver_email == email
         ).first()
@@ -688,12 +612,7 @@ class CollaborationController(Resource):
         set_permissions = invite.set_permissions
         sender_email = invite.sender_email
         receiver_email = email
-        if (
-            not set_permissions
-            or not sender_email
-            or not receiver_email
-            or not calendar_id
-        ):
+        if not set_permissions or not sender_email or not receiver_email:
             return {"error": error_messages[400]}, 400
         try:
             new_collaboration = Collaboration(
@@ -743,11 +662,12 @@ class GuestCollaborationController(Resource):
 class CollaborationControllerById(Resource):
 
     @token_required
-    def patch(self, email, user_id, collaboration_string_id):
+    @verify_data
+    def patch(self, email, user_id, collaboration_string_id, data_items):
 
-        collaboration_id = UUID(collaboration_string_id)
-        if not collaboration_id:
+        if not collaboration_string_id:
             return {"error": error_messages[400]}, 400
+        collaboration_id = UUID(collaboration_string_id)
         collaboration = Collaboration.query.filter(
             Collaboration.id == collaboration_id
         ).first()
@@ -755,12 +675,7 @@ class CollaborationControllerById(Resource):
             return {"error": error_messages[404]}, 404
         if not collaboration.owner_email == email:
             return {"error": error_messages[401]}, 401
-        data = request.get_json()
-        if not data:
-            return {"error": error_messages[400]}, 400
-        permissions = data["permissions"]
-        if not permissions:
-            return {"error": error_messages[400]}, 400
+        permissions = data_items
         try:
             setattr(collaboration, "permissions", permissions)
             db.session.add(collaboration)
