@@ -36,12 +36,12 @@ api.add_resource(
 
 api.add_resource(TaskController, "/tasks", endpoint="tasks")
 api.add_resource(TaskControllerById, "/tasks/<string:task_string_id>")
-api.add_resource(GuestTaskController, "/guest_tasks/<string:task_string_id>")
+api.add_resource(GuestTaskController, "/guest_tasks/<string:collaboration_string_id>")
 api.add_resource(GuestTaskControllerById, "/guest_tasks/<string:task_string_id>")
 
 api.add_resource(EventController, "/events", endpoint="events")
 api.add_resource(EventControllerById, "/events/<string:event_string_id>")
-api.add_resource(GuestEventController, "/guest_events/<string:event_string_id>")
+api.add_resource(GuestEventController, "/guest_events/<string:collaboration_string_id>")
 api.add_resource(GuestEventControllerById, "/guest_events/<string:event_string_id>")
 
 api.add_resource(InviteController, "/invites", endpoint="invites")

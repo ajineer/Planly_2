@@ -25,23 +25,16 @@ class Signup(Resource):
 
     @verify_data
     def post(self, data_items):
-        data = request.get_json()
-        email, first_name, last_name, password = (
-            data_items["email"],
-            data_items["first_name"],
-            data_items["last_name"],
-            data_items["password"],
-        )
-        user = User.query.filter(User.email == email).first()
+        user = User.query.filter(User.email == data_items["email"]).first()
         if user:
             return {"error": error_messages[409]}, 409
         try:
             new_user = User(
-                first_name=first_name,
-                last_name=last_name,
-                email=email,
+                first_name=data_items["first_name"],
+                last_name=data_items["last_name"],
+                email=data_items["email"],
             )
-            new_user.password_hash = password
+            new_user.password_hash = data_items["password"]
             db.session.add(new_user)
             db.session.commit()
             return {"message": success_messages[201]}, 201
@@ -207,8 +200,7 @@ class EventController(Resource):
     @verify_data
     def post(self, email, user_id, data_items):
 
-        calendar_string_id = data_items["calendar_string_id"]
-        calendar_id = UUID(calendar_string_id)
+        calendar_id = UUID(data_items["calendar_string_id"])
         calendar = Calendar.query.filter(Calendar.id == calendar_id).first()
         if not calendar:
             return {"error": error_messages[400]}, 400
@@ -230,21 +222,18 @@ class EventController(Resource):
 class GuestEventController(EventController):
 
     @token_required
-    def post(self, email, user_id, event_string_id):
-        event_id = UUID(event_string_id)
-        if not event_id:
+    def post(self, email, user_id, collaboration_string_id):
+        collaboration_id = UUID(collaboration_string_id)
+        if not collaboration_id:
             return {"error": error_messages[400]}, 400
-        event = Event.query.filter(Event.id == event_id).first()
-        if not event:
-            return {"error": error_messages[404]}, 404
-        collaboration = Collaboration.filter(
-            Collaboration.calendar_id == event.calendar_id
+        collaboration = Collaboration.query.filter(
+            Collaboration.id == collaboration_id
         ).first()
         if not collaboration:
             return {"error": error_messages[404]}, 404
         if collaboration.permissions != "write":
             return {"error": error_messages[401]}, 401
-        return super.post()
+        return super().post()
 
 
 class EventControllerById(Resource):
@@ -335,7 +324,7 @@ class TaskController(Resource):
             return {"error": error_messages[400]}, 400
         try:
             new_task = Task(
-                calendar_id=data_items["calendar_id"],
+                calendar_id=calendar_id,
                 title=data_items["title"],
                 description=data_items["description"],
                 date=data_items["date"],
@@ -355,14 +344,14 @@ class GuestTaskController(TaskController):
         if not collaboration_string_id:
             return {"error": error_messages[400]}, 400
         collaboration_id = UUID(collaboration_string_id)
-        collaboration = Collaboration.filter(
+        collaboration = Collaboration.query.filter(
             Collaboration.id == collaboration_id
         ).first()
         if not collaboration:
             return {"error": error_messages[404]}, 404
         if collaboration.permissions != "write":
             return {"error": error_messages[401]}, 401
-        return super.post()
+        return super().post()
 
 
 class TaskControllerById(Resource):
