@@ -3,6 +3,20 @@ from dotenv import load_dotenv
 import os
 from uuid import UUID
 from flask import request
+from datetime import datetime, timedelta
+
+
+def generate_token(email, id, timeUnits):
+
+    load_dotenv()
+    secret_key = os.getenv("SECRET_KEY")
+    payload = {
+        "email": email,
+        "user_id": id,
+        "exp": datetime.utcnow() + timeUnits,
+    }
+    token = jwt.encode(payload, secret_key)
+    return token
 
 
 def decode_token(token):
@@ -14,10 +28,12 @@ def decode_token(token):
         email = payload["email"]
         user_id = UUID(payload["user_id"])
         return email, user_id
-    except jwt.ExpiredSignatureError:
-        return None, None
+    except ValueError as e:
+        return {"error": f"{e}"}, 400
+    except jwt.ExpiredSignatureError as e:
+        return {"error": f"Expired: {e}"}, 401
     except jwt.InvalidTokenError as e:
-        return None, {"error": f"{e}"}
+        return {"error": f"Invalid Token: {e}"}, 401
 
 
 def token_required(func):
