@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 import os
 from uuid import UUID
 from flask import request
-from datetime import datetime, timedelta
+from datetime import datetime
 
 
 def generate_token(email, id, timeUnits):

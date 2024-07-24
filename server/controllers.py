@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from config import db
 from models import User, Calendar, Event, Task, Invite, Collaboration
 from datetime import datetime, timedelta
+from uuid import UUID
 from utils import (
     verify_data,
     token_required,
@@ -11,8 +12,6 @@ from utils import (
     success_messages,
     generate_token,
 )
-from uuid import UUID
-import jwt
 
 
 class Signup(Resource):
@@ -64,8 +63,8 @@ class CheckSession(Resource):
         return (
             user.to_dict(
                 rules=(
-                    "sent_invites",
-                    "received_invites",
+                    "-sent_invites",
+                    "-received_invites",
                 )
             ),
             200,
@@ -107,7 +106,8 @@ class CalendarControllerById(Resource):
         if not calendar_id:
             return {"error": error_messages[400]}, 400
         calendar = Calendar.query.filter(
-            Calendar.id == calendar_id and Calendar.user_id == user_id
+            Calendar.id == calendar_id,
+            Calendar.user_id == user_id,
         ).first()
         if not calendar:
             return {"error": f" calendar {error_messages[404]} "}, 404
@@ -254,8 +254,8 @@ class EventControllerById(Resource):
         try:
             setattr(event, "name", data_items["name"])
             setattr(event, "description", data_items["description"])
-            setattr(event, "start", data_items["start"])
-            setattr(event, "end", data_items["end"])
+            setattr(event, "start", datetime.fromisoformat(data_items["start"]))
+            setattr(event, "end", datetime.fromisoformat(data_items["end"]))
             db.session.add(event)
             db.session.commit()
             return event.to_dict(), 202
@@ -396,7 +396,7 @@ class TaskControllerById(Resource):
         try:
             setattr(task, "title", data_items["title"])
             setattr(task, "description", data_items["description"])
-            setattr(task, "date", data_items["date"])
+            setattr(task, "date", datetime.fromisoformat(data_items["date"]))
             setattr(task, "status", data_items["status"])
             db.session.add(task)
             db.session.commit()
@@ -464,12 +464,23 @@ class InviteController(Resource):
 
     @token_required
     def get(self, email, user_id):
+
+        start_date = request.args.get("start_date")
+        end_date = request.args.get("end_date")
+        if not start_date or not end_date:
+            return {"error": "no date range was given"}
         user = User.query.filter(User.id == user_id).first()
         if not user:
             return {"error": error_messages[404]}, 404
-        invites = Invite.query.filter(Invite.sender_email == user.email).all()
+        start = datetime.fromisoformat(start_date)
+        end = datetime.fromisoformat(end_date)
+        invites = Invite.query.filter(
+            Invite.sender_email == user.email,
+            Invite.sent_at <= end,
+            Invite.sent_at >= start,
+        ).all()
         if not invites:
-            return {"error": error_messages[404]}, 404
+            return {"error": f"Invites {error_messages[404]}"}, 404
         return [i.to_dict() for i in invites], 200
 
     @token_required
@@ -491,7 +502,7 @@ class InviteController(Resource):
         try:
             new_invite = Invite(
                 status="pending",
-                sent_at=data_items["sent_at"],
+                sent_at=datetime.utcnow(),
                 set_permissions=data_items["set_permissions"],
                 recipient_name=data_items["recipient_name"],
                 calendar_name=data_items["calendar_name"],
