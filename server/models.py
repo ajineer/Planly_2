@@ -25,8 +25,8 @@ class Event(db.Model, SerializerMixin):
     )
     name = db.Column(db.String, nullable=False)
     description = db.Column(db.String)
-    start = db.Column(db.String, nullable=False)
-    end = db.Column(db.String, nullable=False)
+    start = db.Column(db.DateTime, nullable=False)
+    end = db.Column(db.DateTime, nullable=False)
 
     calendar = db.relationship("Calendar", back_populates="events")
 
@@ -44,7 +44,7 @@ class Task(db.Model, SerializerMixin):
     )
     title = db.Column(db.String, nullable=False)
     description = db.Column(db.String)
-    date = db.Column(db.String, nullable=False)
+    date = db.Column(db.DateTime, nullable=False)
     status = db.Column(db.Integer, nullable=False)
 
     calendar_id = db.Column(
@@ -73,7 +73,7 @@ class Invite(db.Model, SerializerMixin):
         default=uuid4,
     )
     status = db.Column(db.String, nullable=False)
-    sent_at = db.Column(db.String, nullable=False)
+    sent_at = db.Column(db.DateTime, nullable=False)
     set_permissions = db.Column(db.String, nullable=False)
     recipient_name = db.Column(db.String, nullable=False)
     calendar_name = db.Column(db.String, nullable=False)
@@ -171,6 +171,8 @@ class Calendar(db.Model, SerializerMixin):
         "-user",
         "-user_id",
         "-collaborations",
+        "-events",
+        "-tasks",
     )
 
     id = db.Column(

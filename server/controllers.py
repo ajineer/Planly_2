@@ -1,12 +1,9 @@
-from flask import request, session
+from flask import request
 from flask_restful import Resource
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from config import db
 from models import User, Calendar, Event, Task, Invite, Collaboration
-import os
-from dotenv import load_dotenv
-from datetime import timedelta
-import jwt
+from datetime import datetime, timedelta
 from utils import (
     verify_data,
     token_required,
@@ -55,18 +52,6 @@ class Login(Resource):
         days = timedelta(days=10)
         token = generate_token(user.email, str(user.id), timeUnits=days)
         return {"message": success_messages[200], "token": str(token)}, 200
-
-
-class Logout(Resource):
-
-    @token_required
-    def post(self, email, user_id):
-        token = request.headers.get("Authorization").split(" ")[1]
-        if not token:
-            return {"error": error_messages[401]}, 401
-        seconds = timedelta(seconds=30)
-        token = generate_token(email, str(user_id), timeUnits=seconds)
-        return {"message": success_messages[204], "token": str(token)}, 200
 
 
 class CheckSession(Resource):
@@ -189,24 +174,51 @@ class GuestCalendarControllerById(CalendarControllerById):
 class EventController(Resource):
 
     @token_required
-    @verify_data
-    def post(self, email, user_id, data_items):
+    def get(self, email, user_id, calendar_string_id):
 
-        calendar_id = UUID(data_items["calendar_string_id"])
-        calendar = Calendar.query.filter(Calendar.id == calendar_id).first()
-        if not calendar:
-            return {"error": error_messages[400]}, 400
+        start_date = request.args.get("start_date")
+        end_date = request.args.get("end_date")
+
         try:
+            calendar_id = UUID(calendar_string_id)
+            if not calendar_id:
+                return {"error": error_messages[400]}, 400
+
+            if not start_date or not end_date:
+                return {"error": "no date range was given"}, 400
+
+            start = datetime.fromisoformat(start_date)
+            end = datetime.fromisoformat(end_date)
+
+            events = Event.query.filter(
+                Event.calendar_id == calendar_id,
+                Event.start >= start,
+                Event.end <= end,
+            ).all()
+            if not events:
+                return {"error": f"Events {error_messages[404]}"}, 404
+            return [e.to_dict() for e in events], 200
+
+        except Exception as e:
+            return {"error": str(e)}, 500
+
+    @token_required
+    @verify_data
+    def post(self, email, user_id, calendar_string_id, data_items):
+        try:
+            calendar_id = UUID(calendar_string_id)
             new_event = Event(
                 calendar_id=calendar_id,
                 name=data_items["name"],
                 description=data_items["description"],
-                start=data_items["start"],
-                end=data_items["end"],
+                start=datetime.fromisoformat(data_items["start"]),
+                end=datetime.fromisoformat(data_items["end"]),
             )
             db.session.add(new_event)
             db.session.commit()
             return new_event.to_dict(), 200
+        except ValueError as e:
+            return {"error": str(e)}
         except (IntegrityError, SQLAlchemyError) as e:
             return {"error": f"error: {e}"}, 500
 
@@ -306,15 +318,42 @@ class GuestEventControllerById(EventControllerById):
 class TaskController(Resource):
 
     @token_required
-    @verify_data
-    def post(self, email, user_id, data_items):
+    def get(self, email, user_id, calendar_string_id):
+        start_date = request.args.get("start_date")
+        end_date = request.args.get("end_date")
         try:
-            # calendar_id = UUID(data_items["calendar_string_id"])
+            calendar_id = UUID(calendar_string_id)
+            if not calendar_id:
+                return {"error": error_messages[400]}, 400
+
+            if not start_date or not end_date:
+                return {"error": "no date range was given"}, 400
+
+            start = datetime.fromisoformat(start_date)
+            end = datetime.fromisoformat(end_date)
+
+            tasks = Task.query.filter(
+                Task.calendar_id == calendar_id,
+                Task.date >= start,
+                Task.date <= end,
+            ).all()
+            if not tasks:
+                return {"error": f"Events {error_messages[404]}"}, 404
+            return [t.to_dict() for t in tasks], 200
+
+        except Exception as e:
+            return {"error": str(e)}, 500
+
+    @token_required
+    @verify_data
+    def post(self, email, user_id, calendar_string_id, data_items):
+        try:
+            calendar_id = UUID(calendar_string_id)
             new_task = Task(
-                calendar_id=UUID(data_items["calendar_string_id"]),
+                calendar_id=calendar_id,
                 title=data_items["title"],
                 description=data_items["description"],
-                date=data_items["date"],
+                date=datetime.fromisoformat(data_items["date"]),
                 status=data_items["status"],
             )
             db.session.add(new_task)
