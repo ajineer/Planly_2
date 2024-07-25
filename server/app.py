@@ -10,6 +10,7 @@ from controllers import (
     EventControllerById,
     GuestEventController,
     GuestEventControllerById,
+    GetTasks,
     TaskController,
     TaskControllerById,
     GuestTaskController,
@@ -31,7 +32,7 @@ api.add_resource(
     GuestCalendarControllerById, "/guest_calendars/<string:calendar_string_id>"
 )
 
-
+api.add_resource(GetTasks, "/tasks/query", endpoint="query")
 api.add_resource(TaskController, "/tasks/<string:calendar_string_id>")
 api.add_resource(TaskControllerById, "/tasks/<string:task_string_id>")
 api.add_resource(GuestTaskController, "/guest_tasks/<string:collaboration_string_id>")

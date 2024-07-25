@@ -315,40 +315,33 @@ class GuestEventControllerById(EventControllerById):
         return super().delete()
 
 
-class TaskController(Resource):
-
-    @token_required
-    def get(self, email, user_id, calendar_string_id):
-        start_date = request.args.get("start_date")
-        end_date = request.args.get("end_date")
-        try:
-            calendar_id = UUID(calendar_string_id)
-            if not calendar_id:
-                return {"error": error_messages[400]}, 400
-
-            if not start_date or not end_date:
-                return {"error": "no date range was given"}, 400
-
-            start = datetime.fromisoformat(start_date)
-            end = datetime.fromisoformat(end_date)
-
-            tasks = Task.query.filter(
-                Task.calendar_id == calendar_id,
-                Task.date >= start,
-                Task.date <= end,
-            ).all()
-            if not tasks:
-                return {"error": f"Events {error_messages[404]}"}, 404
-            return [t.to_dict() for t in tasks], 200
-
-        except Exception as e:
-            return {"error": str(e)}, 500
+class TaskQueryController(Resource):
 
     @token_required
     @verify_data
-    def post(self, email, user_id, calendar_string_id, data_items):
+    def post(self, email, user_id, data_items):
+
         try:
-            calendar_id = UUID(calendar_string_id)
+            tasks = Task.query.filter(
+                Task.date.between(
+                    datetime.fromisoformat(data_items["date_range"][0]),
+                    datetime.fromisoformat(data_items["date_range"][1]),
+                ),
+                Task.calendar_id.in_([UUID(id) for id in data_items["calendar_ids"]]),
+            ).all()
+
+            return [t.to_dict() for t in tasks], 200
+        except ValueError as e:
+            return {"error": str(e)}, 400
+
+
+class TaskCreateController(Resource):
+
+    @token_required
+    @verify_data
+    def post(self, email, user_id, data_items):
+        try:
+            calendar_id = UUID(data_items["calendar_string_id"])
             new_task = Task(
                 calendar_id=calendar_id,
                 title=data_items["title"],
@@ -382,14 +375,12 @@ class GuestTaskController(TaskController):
         return super().post()
 
 
-class TaskControllerById(Resource):
+class TaskDiscreteController(Resource):
 
     @token_required
     @verify_data
-    def patch(self, email, user_id, task_string_id, data_items):
-        if not task_string_id:
-            return {"error": error_messages[400]}, 400
-        task_id = UUID(task_string_id)
+    def patch(self, email, user_id, data_items):
+        task_id = UUID(data_items["task_string_id"])
         task = Task.query.filter(Task.id == task_id).first()
         if not task:
             return {"error": error_messages[404]}, 404
@@ -405,11 +396,10 @@ class TaskControllerById(Resource):
             return {"error": f"error: {e}"}, 500
 
     @token_required
-    def delete(self, email, user_id, task_string_id):
+    @verify_data
+    def delete(self, email, user_id, data_items):
 
-        if not task_string_id:
-            return {"error": error_messages[400]}, 400
-        task_id = UUID(task_string_id)
+        task_id = UUID(data_items["task_string_id"])
         task = Task.query.filter(Task.id == task_id).first()
         if not task:
             return {"error": error_messages[404]}, 404
@@ -424,11 +414,10 @@ class TaskControllerById(Resource):
 class GuestTaskControllerById(TaskControllerById):
 
     @token_required
-    def patch(self, email, user_id, task_string_id):
+    @verify_data
+    def patch(self, email, user_id, data_items):
 
-        task_id = UUID(task_string_id)
-        if not task_id:
-            return {"error": error_messages[400]}, 400
+        task_id = UUID(data_items["task_string_id"])
         task = Task.query.filter(Task.id == task_id).first()
         if not task:
             return {"error": error_messages[404]}, 404

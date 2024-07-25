@@ -8,7 +8,7 @@ export const getTasksRoute = async (user) => {
   return response;
 };
 export const createTasksRoute = async (user, task) => {
-  const response = await fetch("/api/tasks", {
+  const response = await fetch(`/api/tasks/${calendar_id}`, {
     method: "POST",
     headers: {
       Authorization: `bearer ${user.token}`,
