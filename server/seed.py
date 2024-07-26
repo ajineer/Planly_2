@@ -28,6 +28,7 @@ if __name__ == "__main__":
                 db.create_all()
             elif choice == "3":
                 User.query.delete()
+                db.session.commit()
             elif choice == "4":
                 print("deleting calendars")
                 Calendar.query.delete()

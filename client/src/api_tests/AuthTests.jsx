@@ -13,7 +13,7 @@ const AuthTests = () => {
   const handleLogin = async (e) => {
   e.preventDefault()
   
-    await login('user1@gmail.com', 'password123')
+    await login('user3@gmail.com', 'password123')
   }
 
   const handle_check_session = async () => {
@@ -38,6 +38,7 @@ const AuthTests = () => {
   return (
     <div>
         <button onClick={(e) => handleLogin(e)}>Log in</button>
+        {error && <h3>{error}</h3>}
         <button onClick={() => logout(user)}>Log out</button>
         <button onClick={() => handle_check_session()}>Check Session</button>
     </div>

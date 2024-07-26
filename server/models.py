@@ -9,7 +9,7 @@ class Event(db.Model, SerializerMixin):
 
     __tablename__ = "events"
 
-    serialize_rules = ("-calendar",)
+    serialize_rules = ("-calendar", "-user_id")
 
     id = db.Column(
         db.UUID(as_uuid=True),
@@ -22,6 +22,7 @@ class Event(db.Model, SerializerMixin):
             "calendars.id",
             ondelete="CASCADE",
         ),
+        nullable=False,
     )
     name = db.Column(db.String, nullable=False)
     description = db.Column(db.String)
@@ -35,7 +36,7 @@ class Task(db.Model, SerializerMixin):
 
     __tablename__ = "tasks"
 
-    serialize_rules = ("-calendar",)
+    serialize_rules = ("-calendar", "-user_id")
 
     id = db.Column(
         db.UUID(as_uuid=True),
@@ -53,6 +54,7 @@ class Task(db.Model, SerializerMixin):
             "calendars.id",
             ondelete="CASCADE",
         ),
+        nullable=False,
     )
 
     calendar = db.relationship("Calendar", back_populates="tasks")

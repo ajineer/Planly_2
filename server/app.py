@@ -2,17 +2,13 @@ from config import app, api
 from controllers import (
     Signup,
     Login,
-    CheckSession,
     CalendarController,
     CalendarControllerById,
     GuestCalendarControllerById,
-    EventController,
+    EventQueryController,
+    EventCreateController,
     EventControllerById,
-    GuestEventController,
     GuestEventControllerById,
-    GetTasks,
-    TaskController,
-    TaskControllerById,
     GuestTaskController,
     GuestTaskControllerById,
     InviteController,
@@ -24,7 +20,6 @@ from controllers import (
 
 api.add_resource(Signup, "/signup", endpoint="signup")
 api.add_resource(Login, "/login", endpoint="login")
-api.add_resource(CheckSession, "/check_session", endpoint="check_session")
 
 api.add_resource(CalendarController, "/calendars", endpoint="calendars")
 api.add_resource(CalendarControllerById, "/calendars/<string:calendar_string_id>")
@@ -32,15 +27,13 @@ api.add_resource(
     GuestCalendarControllerById, "/guest_calendars/<string:calendar_string_id>"
 )
 
-api.add_resource(GetTasks, "/tasks/query", endpoint="query")
-api.add_resource(TaskController, "/tasks/<string:calendar_string_id>")
-api.add_resource(TaskControllerById, "/tasks/<string:task_string_id>")
+
 api.add_resource(GuestTaskController, "/guest_tasks/<string:collaboration_string_id>")
 api.add_resource(GuestTaskControllerById, "/guest_tasks/<string:task_string_id>")
 
-api.add_resource(EventController, "/events/<string:calendar_string_id>")
+api.add_resource(EventQueryController, "/events/query")
+api.add_resource(EventCreateController, "/events/create")
 api.add_resource(EventControllerById, "/events/<string:event_string_id>")
-api.add_resource(GuestEventController, "/guest_events/<string:collaboration_string_id>")
 api.add_resource(GuestEventControllerById, "/guest_events/<string:event_string_id>")
 
 api.add_resource(InviteController, "/invites", endpoint="invites")
