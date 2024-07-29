@@ -11,6 +11,7 @@ from utils import (
     error_messages,
     success_messages,
     generate_token,
+    verify_collaboration,
 )
 
 
@@ -54,7 +55,7 @@ class Login(Resource):
         return {"message": success_messages[200], "token": str(token)}, 200
 
 
-class CalendarController(Resource):
+class CalendarCreateController(Resource):
 
     @token_required
     def get(self, email, user_id):
@@ -79,7 +80,7 @@ class CalendarController(Resource):
             return {"error": f"{e}"}, 500
 
 
-class CalendarControllerById(Resource):
+class CalendarPatchDeleteController(Resource):
 
     @token_required
     def get(self, email, user_id, calendar_string_id):
@@ -133,23 +134,11 @@ class CalendarControllerById(Resource):
             return {"error": f"{e}"}, 500
 
 
-class GuestCalendarControllerById(CalendarControllerById):
+class GuestCalendarPatchController(Resource):
 
     @token_required
-    @verify_data
-    def patch(self, email, user_id, data_items):
-        calendar = Calendar.query.filter(
-            Calendar.id == UUID(data_items["calendar_string_id"])
-        ).first()
-        if not calendar:
-            return {"error": error_messages[404]}, 404
-        collaboration = Collaboration.query.filter(
-            Collaboration.calendar_id == UUID(data_items["calendar_string_id"])
-        ).first()
-        if not collaboration:
-            return {"error": f"collaboration {error_messages[404]}"}, 404
-        if collaboration.permissions != "write":
-            return {"error": error_messages[401]}, 401
+    @verify_collaboration
+    def patch(self, email, user_id, data_items, calendar):
         try:
             setattr(calendar, "name", data_items["name"])
             setattr(calendar, "description", data_items["description"])
@@ -209,21 +198,14 @@ class EventCreateController(Resource):
 class GuestEventQueryController(Resource):
 
     @token_required
-    @verify_data
-    def post(self, email, user_id, data_items):
-        collaboration = Collaboration.query.filter(
-            Collaboration.id == UUID(data_items["collaboration_id"])
-        ).first()
-        if not collaboration:
-            return {"error": f"collaboration {error_messages[404]}"}, 404
-        if collaboration.permissions != "write":
-            return {"error": error_messages[401]}, 401
+    @verify_collaboration
+    def post(self, email, user_id, data_items, calendar):
         events = Event.query.filter(
             Event.start.between(
                 datetime.fromisoformat(data_items["start"]),
                 datetime.fromisoformat(data_items["end"]),
             ),
-            Event.calendar_id == collaboration.calendar_id,
+            Event.calendar_id == calendar.calendar_id,
         ).all()
         if not events:
             return {"error": f"events {error_messages[404]}"}, 404
@@ -233,18 +215,11 @@ class GuestEventQueryController(Resource):
 class GuestEventCreateController(Resource):
 
     @token_required
-    @verify_data
-    def post(self, email, user_id, data_items):
-        collaboration = Collaboration.query.filter(
-            Collaboration.id == UUID(data_items["collaboration_id"])
-        ).first()
-        if not collaboration:
-            return {"error": f"collaboration {error_messages[404]}"}, 404
-        if collaboration.permissions != "write":
-            return {"error": error_messages[401]}, 401
+    @verify_collaboration
+    def post(self, email, user_id, data_items, calendar):
         try:
             new_event = Event(
-                calendar_id=data_items["calendar_string_id"],
+                calendar_id=calendar.id,
                 name=data_items["name"],
                 description=data_items["description"],
                 start=datetime.fromisoformat(data_items["start"]),
@@ -259,17 +234,24 @@ class GuestEventCreateController(Resource):
             return {"error": f"error: {e}"}, 500
 
 
-class EventControllerById(Resource):
+class EventPatchDeleteController(Resource):
 
     @token_required
     @verify_data
-    def patch(self, email, user_id, event_string_id, data_items):
-        if not event_string_id:
-            return {"error": error_messages[400]}, 400
-        event_id = UUID(event_string_id)
-        event = Event.query.filter(Event.id == event_id).first()
+    def patch(self, email, user_id, data_items):
+
+        calendar = Calendar.query.filter(
+            Calendar.user_id == user_id,
+            Calendar.id == UUID(data_items["calendar_string_id"]),
+        ).first()
+        if not calendar:
+            return {"error": f"calendar {error_messages[404]}"}, 404
+        event = Event.query.filter(
+            Event.id == UUID(data_items["event_string_id"])
+        ).first()
         if not event:
             return {"error": error_messages[404]}, 404
+
         try:
             setattr(event, "name", data_items["name"])
             setattr(event, "description", data_items["description"])
@@ -289,6 +271,11 @@ class EventControllerById(Resource):
         event = Event.query.filter(Event.id == event_id).first()
         if not event:
             return {"error": error_messages[404]}, 404
+        calendar = Calendar.query.filter(
+            Calendar.id == event.calendar_id, Calendar.user_id == user_id
+        ).first()
+        if not calendar:
+            return {"error": f"calendar {error_messages[404]}"}, 404
         try:
             db.session.delete(event)
             db.session.commit()
@@ -297,41 +284,45 @@ class EventControllerById(Resource):
             return {"error": f"error: {e}"}, 500
 
 
-class GuestEventControllerById(EventControllerById):
+class GuestEventPatchDeleteController(Resource):
 
     @token_required
-    def patch(self, email, user_id, event_string_id):
-        event_id = UUID(event_string_id)
-        if not event_id:
-            return {"error": error_messages[400]}, 400
-        event = Event.query.filter(Event.id == event_id).first()
+    @verify_collaboration
+    def patch(self, email, user_id, data_items, calendar):
+
+        event = Event.query.filter(
+            Event.id == UUID(data_items["event_string_id"]),
+            Event.calendar_id == calendar.id,
+        ).first()
         if not event:
             return {"error": error_messages[404]}, 404
-        collaboration = Collaboration.query.filter(
-            Collaboration.calendar_id == event.calendar_id
-        ).first()
-        if not collaboration:
-            return {"error": error_messages[404]}, 404
-        if collaboration.permissions != "write":
-            return {"error": error_messages[401]}, 401
-        return super().patch(event_string_id=event_string_id)
+        try:
+            setattr(event, "name", data_items["name"])
+            setattr(event, "description", data_items["description"])
+            setattr(event, "start", datetime.fromisoformat(data_items["start"]))
+            setattr(event, "end", datetime.fromisoformat(data_items["end"]))
+            db.session.add(event)
+            db.session.commit()
+            return event.to_dict(), 202
+        except (IntegrityError, SQLAlchemyError) as e:
+            return {"error": f"error: {e}"}, 500
 
     @token_required
-    def delete(self, email, user_id, event_string_id):
-        event_id = UUID(event_string_id)
-        if not event_id:
-            return {"error": error_messages[400]}, 400
-        event = Event.query.filter(Event.id == event_id).first()
+    @verify_collaboration
+    def delete(self, email, user_id, data_items, calendar):
+
+        event = Event.query.filter(
+            Event.id == UUID(data_items["event_string_id"]),
+            Event.calendar_id == calendar.id,
+        ).first()
         if not event:
             return {"error": error_messages[404]}, 404
-        collaboration = Collaboration.filter(
-            Collaboration.calendar_id == event.calendar_id
-        ).first()
-        if not collaboration:
-            return {"error": error_messages[404]}, 404
-        if collaboration.permissions != "write":
-            return {"error": error_messages[401]}, 401
-        return super().delete()
+        try:
+            db.session.delete(event)
+            db.session.commit()
+            return {"message": success_messages[204]}, 204
+        except (IntegrityError, SQLAlchemyError) as e:
+            return {"error": f"error: {e}"}, 500
 
 
 class TaskQueryController(Resource):
@@ -339,19 +330,19 @@ class TaskQueryController(Resource):
     @token_required
     @verify_data
     def post(self, email, user_id, data_items):
-
-        try:
-            tasks = Task.query.filter(
-                Task.date.between(
-                    datetime.fromisoformat(data_items["date_range"][0]),
-                    datetime.fromisoformat(data_items["date_range"][1]),
-                ),
-                Task.calendar_id.in_([UUID(id) for id in data_items["calendar_ids"]]),
-            ).all()
-
-            return [t.to_dict() for t in tasks], 200
-        except ValueError as e:
-            return {"error": str(e)}, 400
+        calendars = Calendar.query.filter(Calendar.user_id == user_id).all()
+        if not calendars:
+            return {"error": f"calendars {error_messages[404]}"}, 404
+        tasks = Task.query.filter(
+            Task.date.between(
+                datetime.fromisoformat(data_items["start"]),
+                datetime.fromisoformat(data_items["end"]),
+            ),
+            Task.calendar_id.in_([UUID(c.id) for c in calendars]),
+        ).all()
+        if not tasks:
+            return {"error": f"tasks {error_messages[404]}"}, 404
+        return [t.to_dict() for t in tasks], 200
 
 
 class TaskCreateController(Resource):
@@ -359,10 +350,15 @@ class TaskCreateController(Resource):
     @token_required
     @verify_data
     def post(self, email, user_id, data_items):
+        calendar = Calendar.query.filter(
+            Calendar.id == UUID(data_items["calendar_string_id"]),
+            Calendar.user_id == user_id,
+        ).first()
+        if not calendar:
+            return {"error": f"calendar {error_messages[404]}"}, 404
         try:
-            calendar_id = UUID(data_items["calendar_string_id"])
             new_task = Task(
-                calendar_id=calendar_id,
+                calendar_id=UUID(data_items["calendar_string_id"]),
                 title=data_items["title"],
                 description=data_items["description"],
                 date=datetime.fromisoformat(data_items["date"]),
@@ -377,32 +373,41 @@ class TaskCreateController(Resource):
             return {"error": f"error: {e}"}, 500
 
 
-class GuestTaskController(Resource):
+class GuestTaskCreateController(Resource):
 
     @token_required
-    def post(self, email, user_id, collaboration_string_id):
-        if not collaboration_string_id:
-            return {"error": error_messages[400]}, 400
-        collaboration_id = UUID(collaboration_string_id)
-        collaboration = Collaboration.query.filter(
-            Collaboration.id == collaboration_id
-        ).first()
-        if not collaboration:
-            return {"error": error_messages[404]}, 404
-        if collaboration.permissions != "write":
-            return {"error": error_messages[401]}, 401
-        return None
+    @verify_collaboration
+    def post(self, email, user_id, data_items, calendar):
+        try:
+            new_task = Task(
+                calendar_id=calendar.id,
+                title=data_items["title"],
+                description=data_items["description"],
+                date=datetime.fromisoformat(data_items["date"]),
+                status=data_items["status"],
+            )
+            db.session.add(new_task)
+            db.session.commit()
+            return new_task.to_dict(), 201
+        except ValueError as e:
+            return {"error": f"error: {e}"}, 400
+        except (IntegrityError, SQLAlchemyError) as e:
+            return {"error": f"error: {e}"}, 500
 
 
-class TaskDiscreteController(Resource):
+class TaskPatchDeleteController(Resource):
 
     @token_required
     @verify_data
     def patch(self, email, user_id, data_items):
-        task_id = UUID(data_items["task_string_id"])
-        task = Task.query.filter(Task.id == task_id).first()
+        task = Task.query.filter(Task.id == UUID(data_items["task_string_id"])).first()
         if not task:
-            return {"error": error_messages[404]}, 404
+            return {"error": f"task {error_messages[404]}"}, 404
+        calendar = Calendar.query.filter(
+            Calendar.user_id == user_id, Calendar.id == task.calendar_id
+        ).first()
+        if not calendar:
+            return {"error": f"calendar {error_messages[404]}"}, 404
         try:
             setattr(task, "title", data_items["title"])
             setattr(task, "description", data_items["description"])
@@ -416,12 +421,16 @@ class TaskDiscreteController(Resource):
 
     @token_required
     @verify_data
-    def delete(self, email, user_id, data_items):
+    def delete(self, email, user_id, task_string_id):
 
-        task_id = UUID(data_items["task_string_id"])
-        task = Task.query.filter(Task.id == task_id).first()
+        task = Task.query.filter(Task.id == UUID(task_string_id)).first()
         if not task:
             return {"error": error_messages[404]}, 404
+        calendar = Calendar.query.filter(
+            Calendar.id == task.calendar_id, Calendar.user_id == user_id
+        ).first()
+        if not calendar:
+            return {"error": f"calendar {error_messages[404]}"}, 404
         try:
             db.session.delete(task)
             db.session.commit()
@@ -430,77 +439,72 @@ class TaskDiscreteController(Resource):
             return {"error": f"error: {e}"}, 500
 
 
-class GuestTaskControllerById(Resource):
+class GuestTaskPatchController(Resource):
 
     @token_required
-    @verify_data
-    def patch(self, email, user_id, data_items):
+    @verify_collaboration
+    def patch(self, email, user_id, data_items, calendar):
 
-        task_id = UUID(data_items["task_string_id"])
-        task = Task.query.filter(Task.id == task_id).first()
-        if not task:
-            return {"error": error_messages[404]}, 404
-        collaboration = Collaboration.query.filter(
-            Collaboration.calendar_id == task.calendar_id
+        task = Task.query.filter(
+            Task.calendar_id == calendar.id,
+            Task.id == UUID(data_items["task_string_id"]),
         ).first()
-        if not collaboration:
-            return {"error": error_messages[404]}, 404
-        if collaboration.permissions != "write":
-            return {"error": error_messages[401]}, 401
-        return None
+        try:
+            setattr(task, "title", data_items["title"])
+            setattr(task, "description", data_items["description"])
+            setattr(task, "date", datetime.fromisoformat(data_items["date"]))
+            setattr(task, "status", data_items["status"])
+            db.session.add(task)
+            db.session.commit()
+            return task.to_dict(), 202
+        except (IntegrityError, SQLAlchemyError) as e:
+            return {"error": f"error: {e}"}, 500
 
     @token_required
-    def delete(self, email, user_id, task_string_id):
+    @verify_collaboration
+    def delete(self, email, user_id, data_items, calendar):
 
-        task_id = UUID(task_string_id)
-        if not task_id:
-            return {"error": error_messages[400]}, 400
-        task = Task.query.filter(Task.id == task_id).first()
-        if not task:
-            return {"error": error_messages[404]}, 404
-        collaboration = Collaboration.query.filter(
-            Collaboration.calendar_id == task.calendar_id
+        task = Task.query.filter(
+            Task.id == UUID(data_items["task_string_id"]),
+            Task.calendar_id == calendar.id,
         ).first()
-        if not collaboration:
-            return {"error": error_messages[404]}, 404
-        if collaboration.permissions != "write":
-            return {"error": error_messages[401]}, 401
-        return super.delete()
+
+        try:
+            db.session.delete(task)
+            db.session.commit()
+            return {"message": success_messages[204]}, 204
+        except (IntegrityError, SQLAlchemyError) as e:
+            return {"error": f"error: {e}"}, 500
 
 
-class InviteController(Resource):
-
-    @token_required
-    def get(self, email, user_id):
-
-        start_date = request.args.get("start_date")
-        end_date = request.args.get("end_date")
-        if not start_date or not end_date:
-            return {"error": "no date range was given"}
-        user = User.query.filter(User.id == user_id).first()
-        if not user:
-            return {"error": error_messages[404]}, 404
-        start = datetime.fromisoformat(start_date)
-        end = datetime.fromisoformat(end_date)
-        invites = Invite.query.filter(
-            Invite.sender_email == user.email,
-            Invite.sent_at <= end,
-            Invite.sent_at >= start,
-        ).all()
-        if not invites:
-            return {"error": f"Invites {error_messages[404]}"}, 404
-        return [i.to_dict() for i in invites], 200
+class InviteQueryController(Resource):
 
     @token_required
     @verify_data
     def post(self, email, user_id, data_items):
-        user = User.query.filter(User.id == user_id).first()
+        invites = Invite.query.filter(
+            Invite.sent_at.between(
+                datetime.fromisoformat(data_items["start"]),
+                datetime.fromisoformat(data_items["end"]),
+            ),
+            Invite.sender.id == user_id,
+        ).all()
+        if not invites:
+            return {"error": f"invites {error_messages[404]}"}, 404
+        return [i.to_dict() for i in invites], 200
+
+
+class InviteCreateController(Resource):
+
+    @token_required
+    @verify_data
+    def post(self, email, user_id, data_items):
         invite = Invite.query.filter(
-            Invite.sender_email == email
-            and Invite.receiver_email == data_items["receiver_email"]
-            and Invite.calendar_id == UUID(data_items["calendar_string_id"])
+            Invite.sender_email == email,
+            Invite.receiver_email == data_items["receiver_email"],
+            Invite.calendar_id == UUID(data_items["calendar_string_id"]),
         ).first()
-        if invite and invite.active:
+        if invite:
             return {"error": error_messages[409]}, 409
         calendar = Calendar.query.filter(
             Calendar.id == UUID(data_items["calendar_string_id"])
@@ -515,8 +519,8 @@ class InviteController(Resource):
                 recipient_name=data_items["recipient_name"],
                 calendar_name=data_items["calendar_name"],
                 active=1,
-                calendar_id=UUID(data_items["calendar_string_id"]),
-                sender_email=user.email,
+                calendar_id=calendar.id,
+                sender_email=email,
                 receiver_email=data_items["receiver_email"],
             )
             db.session.add(new_invite)
@@ -526,7 +530,7 @@ class InviteController(Resource):
             return {"error": f"{e}"}, 500
 
 
-class InviteControllerById(Resource):
+class InvitePatchDeleteController(Resource):
 
     @token_required
     @verify_data

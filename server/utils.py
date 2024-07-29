@@ -4,6 +4,7 @@ import os
 from uuid import UUID
 from flask import request
 from datetime import datetime
+from models import Collaboration, Calendar
 
 
 def generate_token(email, id, timeUnits):
@@ -65,6 +66,27 @@ def verify_data(func):
             else:
                 data_items[key] = data[key]
         return func(*args, data_items=data_items, **kwargs)
+
+    return wrapper
+
+
+def verify_collaboration(func):
+
+    @verify_data
+    def wrapper(*args, data_items, **kwargs):
+        collaboration = Collaboration.query.filter(
+            Collaboration.id == UUID(data_items["collaboration_string_id"])
+        ).first()
+        if not collaboration:
+            return {"error" f"collaboration {error_messages[404]}"}, 404
+        if collaboration.permissions != "write":
+            return {"error": error_messages[401]}, 401
+        calendar = Calendar.query.filter(
+            Calendar.id == UUID(collaboration.calendar_id)
+        ).first()
+        if not calendar:
+            return {"error": f"calendar {error_messages[404]}"}, 404
+        return func(*args, calendar=calendar, data_items=data_items, **kwargs)
 
     return wrapper
 
