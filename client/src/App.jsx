@@ -1,6 +1,4 @@
 import AuthTests from './api_tests/AuthTests'
-import GetCalendars from './api_tests/GetCalendars'
-import TaskApiTest from './api_tests/TaskApiTest'
 import './App.css'
 
 function App() {
@@ -10,8 +8,6 @@ function App() {
     
     <div>
       <AuthTests/>
-      <GetCalendars/>
-      <TaskApiTest/>
     </div>
   )
 }

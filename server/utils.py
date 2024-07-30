@@ -72,10 +72,13 @@ def verify_data(func):
 
 def verify_collaboration(func):
 
+    @token_required
     @verify_data
-    def wrapper(*args, data_items, **kwargs):
+    def wrapper(*args, email, user_id, data_items, **kwargs):
         collaboration = Collaboration.query.filter(
-            Collaboration.id == UUID(data_items["collaboration_string_id"])
+            Collaboration.id == UUID(data_items["collaboration_string_id"]),
+            Collaboration.guest.id == user_id,
+            Collaboration.guest_email == email,
         ).first()
         if not collaboration:
             return {"error" f"collaboration {error_messages[404]}"}, 404
