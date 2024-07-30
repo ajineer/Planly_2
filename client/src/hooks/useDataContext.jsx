@@ -1,5 +1,7 @@
 import { useContext } from "react";
-import { CalendarContext, TaskContext } from "../context/DataContext";
+import { CalendarContext, EventContext, TaskContext } from "../context/CalendarEventTaskContext"
+import { Received_InviteContext, Sent_InviteContext } from "../context/InviteContext"
+import { CollaborationContext } from "../context/CollaborationContext";
 
 const createUseContextHook = (Context, contextName) => {
     return () => {
@@ -13,8 +15,7 @@ const createUseContextHook = (Context, contextName) => {
 
 export const useCalendarContext = createUseContextHook(CalendarContext, 'Calendar')
 export const useTaskContext= createUseContextHook(TaskContext, 'Task')
-// export const useEventContext = createUseContextHook(EventContext, 'Event')
-// export const useSentInviteContext = createUseContextHook(Sent_InviteContext, 'SentInvite')
-// export const useReceivedInviteContext = createUseContextHook(Received_InviteContext, 'RecievedInvite')
-// export const useOwnedCollaborationContext = createUseContextHook(Owned_CollaborationContext, 'OwnedCollaboration')
-// export const useGuestCollaborationContext = createUseContextHook(Guest_CollaborationContext, 'GuestCollaboration')
+export const useEventContext = createUseContextHook(EventContext, 'Event')
+export const useSentInviteContext = createUseContextHook(Sent_InviteContext, 'Invite')
+export const useReceivedInviteContext = createUseContextHook(Received_InviteContext, 'Invite')
+export const useCollaborationContext = createUseContextHook(CollaborationContext, 'Collaboration')

@@ -53,8 +53,10 @@ api.add_resource(Signup, "/signup")
 api.add_resource(Login, "/login")
 
 api.add_resource(CalendarQueryCreateController, "/calendars")
-api.add_resource(CalendarPatchController, "/calendars")
-api.add_resource(CalendarDeleteController, "/calendars/<string:calendar_string_id>")
+api.add_resource(CalendarPatchController, "/calendars/patch")
+api.add_resource(
+    CalendarDeleteController, "/calendars/delete/<string:calendar_string_id>"
+)
 
 api.add_resource(EventQueryController, "/events/query")
 api.add_resource(EventCreateController, "/events/create")

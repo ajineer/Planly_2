@@ -1,4 +1,5 @@
 import AuthTests from './api_tests/AuthTests'
+import CalendarApiTest from './api_tests/CalendarApiTest'
 import './App.css'
 
 function App() {
@@ -8,6 +9,7 @@ function App() {
     
     <div>
       <AuthTests/>
+      <CalendarApiTest/>
     </div>
   )
 }

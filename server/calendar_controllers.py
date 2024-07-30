@@ -42,9 +42,9 @@ class CalendarPatchController(Resource):
     @verify_data
     def patch(self, email, user_id, data_items):
 
-        calendar_id = UUID(data_items["calendar_string_id"])
+        calendar_id = UUID(data_items["id"])
         if not calendar_id:
-            return {"error": error_messages[400]}, 400
+            return {"error": f"calendar id {error_messages[400]}"}, 400
         calendar = Calendar.query.filter(
             Calendar.user_id == user_id, Calendar.id == calendar_id
         ).first()
@@ -78,6 +78,6 @@ class CalendarDeleteController(Resource):
         try:
             db.session.delete(calendar)
             db.session.commit()
-            return {"message": success_messages[204]}, 204
+            return {"message": success_messages[200]}, 200
         except (IntegrityError, SQLAlchemyError) as e:
             return {"error": f"{e}"}, 500

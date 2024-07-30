@@ -32,13 +32,6 @@ const createProvider = (Context, reducer, intialState) => ({ children }) => {
     )
 }
 
-const CalendarReducer = createReducer('CALENDARS')
-const EventReducer = createReducer('EVENTS')
-const TaskReducer = createReducer('TASKS')
-
-export const CalendarContext = createContext()
-export const EventContext = createContext()
-export const TaskContext = createContext()
-export const CalendarContextProvider = createProvider(CalendarContext, CalendarReducer, { calendars: [] })
-export const TaskContextProvider = createProvider(TaskContext, TaskReducer, { tasks: [] })
-export const EventContextProvider = createProvider(EventContext, EventReducer, { events: [] })
+const CollaborationReducer = createReducer("COLLABORATIONS")
+export const CollaborationContext = createContext()
+export const CollaborationContextProvider = createProvider(CollaborationContext, CollaborationReducer, { collaborations: [] })

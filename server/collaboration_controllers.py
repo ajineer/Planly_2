@@ -64,7 +64,7 @@ class GuestCollaborationQueryController(Resource):
     @token_required
     def get(self, email, user_id):
         collaborations = Collaboration.query.filter(
-            Collaboration.guest_email == email
+            Collaboration.guest_email == email, Collaboration.guest.user_id == user_id
         ).all()
         if not collaborations:
             return {"error": error_messages[404]}, 404
@@ -87,7 +87,9 @@ class GuestCollaborationDeleteController(Resource):
         if not collaboration_id:
             return {"error": error_messages[400]}, 400
         collaboration = Collaboration.query.filter(
-            Collaboration.id == collaboration_id, Collaboration.guest_email == email
+            Collaboration.id == collaboration_id,
+            Collaboration.guest_email == email,
+            Collaboration.guest.id == user_id,
         ).first()
         if not collaboration:
             return {"error": f"collaboration {error_messages[404]}"}, 404
