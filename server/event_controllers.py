@@ -104,13 +104,11 @@ class EventPatchController(Resource):
 
         calendar = Calendar.query.filter(
             Calendar.user_id == user_id,
-            Calendar.id == UUID(data_items["calendar_string_id"]),
+            Calendar.id == UUID(data_items["calendar_id"]),
         ).first()
         if not calendar:
             return {"error": f"calendar {error_messages[404]}"}, 404
-        event = Event.query.filter(
-            Event.id == UUID(data_items["event_string_id"])
-        ).first()
+        event = Event.query.filter(Event.id == UUID(data_items["id"])).first()
         if not event:
             return {"error": error_messages[404]}, 404
 
@@ -137,7 +135,9 @@ class EventDeleteController(Resource):
         if not event:
             return {"error": error_messages[404]}, 404
         calendar = Calendar.query.filter(
-            Calendar.id == event.calendar_id, Calendar.user_id == user_id
+            Calendar.id == event.calendar_id,
+            Calendar.user_id == user_id,
+            Calendar.user.email == email,
         ).first()
         if not calendar:
             return {"error": f"calendar {error_messages[404]}"}, 404
