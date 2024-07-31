@@ -1,13 +1,11 @@
 import React, { useState } from 'react'
 import { useLogin } from '../hooks/useLogin'
 import { useLogout } from '../hooks/useLogout'
-import { useAuthContext } from '../hooks/useAuthContext'
 
 const AuthTests = () => {
 
   const {login, error, isLoading} = useLogin()
   const { logout } = useLogout()
-  const {user} = useAuthContext()
 
   const handleLogin = async (e) => {
   e.preventDefault()
@@ -19,7 +17,7 @@ const AuthTests = () => {
     <div>
         <button onClick={(e) => handleLogin(e)}>Log in</button>
         {error && <h3>{error}</h3>}
-        <button onClick={() => logout(user)}>Log out</button>
+        <button onClick={() => logout()}>Log out</button>
     </div>
   )
 }

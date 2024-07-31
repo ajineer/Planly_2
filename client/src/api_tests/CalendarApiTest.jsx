@@ -80,6 +80,8 @@ const CalendarApiTest = () => {
     console.log(calendars)
   }, [calendars, dispatch])
 
+  // useEffect()
+
   return (
     <div>
         <button onClick={() => handleGetCalendars()}>Get Calendars</button>

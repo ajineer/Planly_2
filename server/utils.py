@@ -16,15 +16,9 @@ def generate_token(email, id, timeUnits):
         "user_id": id,
         "exp": datetime.utcnow() + timeUnits,
     }
-    refresh_token_payload = {
-        "email": email,
-        "user_id": id,
-        "exp": datetime.utcnow() + timedelta(days=30),
-    }
     access_token = jwt.encode(access_token_payload, secret_key)
-    refresh_token = jwt.encode(refresh_token_payload, secret_key)
 
-    return access_token, refresh_token
+    return access_token
 
 
 def decode_token(token):
@@ -95,36 +89,6 @@ def verify_collaboration(func):
         if not calendar:
             return {"error": f"calendar {error_messages[404]}"}, 404
         return func(*args, calendar=calendar, data_items=data_items, **kwargs)
-
-    return wrapper
-
-
-def refresh_token(func):
-
-    def wrapper(*args, **kwargs):
-        try:
-            token = request.cookies.get("access_token")
-            if not token:
-                return {"error": error_messages[401]}, 401
-            email, user_id = decode_token(token)
-            if not email or not user_id:
-                return {"error": error_messages[401]}, 401
-            access_token, refresh_token = generate_token(
-                email, str(user_id), timedelta(days=30)
-            )
-            response = make_response(jsonify({"refresh_token": refresh_token}))
-            response.set_cookie(
-                "access_token",
-                access_token,
-                httponly=True,
-                secure=True,
-                samesite="Strict",
-            )
-            return func(*args, response=response, **kwargs)
-        except jwt.ExpiredSignatureError:
-            return {"error": "Refresh token expired"}, 401
-        except jwt.InvalidTokenError:
-            return {"error": "Invalid refresh token"}, 401
 
     return wrapper
 

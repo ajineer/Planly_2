@@ -1,11 +1,7 @@
 from config import app, api
 
 # user controller imports
-from user_controllers import (
-    Signup,
-    Login,
-    CheckAuth,
-)
+from user_controllers import Signup, Login, CheckAuth, Logout
 
 # calendar controller imports
 from calendar_controllers import (
@@ -54,6 +50,7 @@ from collaboration_controllers import (
 
 api.add_resource(Signup, "/signup")
 api.add_resource(Login, "/login")
+api.add_resource(Logout, "/logout")
 api.add_resource(CheckAuth, "/check_auth")
 
 api.add_resource(CalendarQueryCreateController, "/calendars")

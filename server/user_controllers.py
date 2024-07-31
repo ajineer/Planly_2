@@ -11,7 +11,7 @@ from utils import (
     error_messages,
     success_messages,
     generate_token,
-    refresh_token,
+    token_required,
     decode_token,
 )
 
@@ -52,12 +52,8 @@ class Login(Resource):
             return {"error": f"user {error_messages[404]}"}, 404
 
         days = timedelta(days=10)
-        access_token, refresh_token = generate_token(
-            user.email, str(user.id), timeUnits=days
-        )
-        response = make_response(
-            jsonify({"message": success_messages[200], "refresh_token": refresh_token})
-        )
+        access_token = generate_token(user.email, str(user.id), timeUnits=days)
+        response = make_response(jsonify({"message": success_messages[200]}))
         response.set_cookie(
             "access_token",
             access_token,
@@ -68,29 +64,23 @@ class Login(Resource):
         return response
 
 
+class Logout(Resource):
+
+    @token_required
+    def post(self, email, user_id):
+        user = User.query.filter(User.email == email, User.id == user_id).first()
+        if not user:
+            return {"error": f"user {error_messages[401]}"}, 401
+        response = make_response({"message": "user logged out"})
+        response.set_cookie("access_token", expires=0, httponly=True, secure=True)
+        return response
+
+
 class CheckAuth(Resource):
 
-    def get(self):
-        try:
-            token = request.cookies.get("access_token")
-            if not token:
-                return {"error": error_messages[401]}, 401
-            email, user_id = decode_token(token)
-            if not email or not user_id:
-                return {"error": error_messages[401]}, 401
-            access_token, refresh_token = generate_token(
-                email, str(user_id), timedelta(days=30)
-            )
-            response = make_response(jsonify({"refresh_token": refresh_token}))
-            response.set_cookie(
-                "access_token",
-                access_token,
-                httponly=True,
-                secure=True,
-                samesite="Strict",
-            )
-            return response
-        except jwt.ExpiredSignatureError:
-            return {"error": "Refresh token expired"}, 401
-        except jwt.InvalidTokenError:
-            return {"error": "Invalid refresh token"}, 401
+    @token_required
+    def get(self, email, user_id):
+        user = User.query.filter(User.email == email, User.id == user_id).first()
+        if not user:
+            return {"error": f"user {error_messages[401]}"}, 401
+        return {"message": f"user authenticated {success_messages[200]}"}, 200

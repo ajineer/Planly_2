@@ -1,20 +1,17 @@
 import React, { useEffect, useState } from 'react'
 import AuthTests from './api_tests/AuthTests'
-import CalendarApiTest from './api_tests/CalendarApiTest'
-import EventApiTest from './api_tests/EventApiTest'
-import TaskApiTest from './api_tests/TaskApiTest'
-import { useAuthContext } from './hooks/useAuthContext'
+// import CalendarApiTest from './api_tests/CalendarApiTest'
+// import EventApiTest from './api_tests/EventApiTest'
+// import TaskApiTest from './api_tests/TaskApiTest'
 import './App.css'
-import { useLogout } from './hooks/useLogout'
 
 function App() {
 
-  const {user, dispatch} = useAuthContext()
-  const {logout} = useLogout()
+  const [authorized, setAuthorized] = useState(false)
   const {error, setError} = useState()
 
   useEffect(() => {
-    const fetchTokens = async () => {
+    const fetchToken = async () => {
       const response = await fetch("/api/check_auth", {
         credentials: "include"
       })
@@ -22,18 +19,17 @@ function App() {
       const json = await response.json()
 
       if(!response.ok){
-        dispatch({type: "LOGOUT"})
+        console.log("user not logged in")
+        setAuthorized(false)
         setError(json?.error)
       }
       if(response.ok){
-        console.log("look: ", response)
-        localStorage.setItem("refresh_token", response.refresh_token)
-        dispatch({type: "LOGIN", payload:json})
+        console.log("user logged in")
+        setAuthorized(true)
       }
     }
-
-    if(user){
-      fetchTokens()
+    if(!authorized){
+      fetchToken()
     }
   },[])
   return (
@@ -41,9 +37,9 @@ function App() {
 
     <div>
       <AuthTests/>
-      {user && <CalendarApiTest/>}
-      {user && <EventApiTest/>}
-      {user && <TaskApiTest/>}
+      {/* <CalendarApiTest/>
+      <EventApiTest/>
+      <TaskApiTest/> */}
     </div>
   )
 }

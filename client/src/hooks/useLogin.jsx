@@ -1,10 +1,8 @@
 import { useState } from "react";
-import { useAuthContext } from "./useAuthContext";
 
 export const useLogin = () => {
     const [error, setError] = useState(null)
     const [isLoading, setIsLoading] = useState(null)
-    const { dispatch } = useAuthContext()
 
     const login = async (email, password) => {
 
@@ -26,8 +24,6 @@ export const useLogin = () => {
         }
 
         if(response.ok){
-            localStorage.setItem("refresh_token", json.refresh_token)
-            dispatch({type: 'LOGIN', payload: json})
             setIsLoading(false)
         }
     }
