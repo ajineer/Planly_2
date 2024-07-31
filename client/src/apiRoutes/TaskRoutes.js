@@ -1,26 +1,18 @@
-export const getTasksRoute = async (user) => {
-  const response = await fetch("/api/calendars", {
-    headers: {
-      Authorization: `bearer ${user.token}`,
-    },
-  });
-
-  return response;
-};
-export const createTasksRoute = async (user, task) => {
-  const response = await fetch(`/api/tasks/${calendar_id}`, {
+export const fetchTasks = async (user, body) => {
+  const response = await fetch("/api/tasks/query", {
     method: "POST",
     headers: {
       Authorization: `bearer ${user.token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(task),
+    body: JSON.stringify(body),
   });
 
   return response;
 };
-export const patchTasksRoute = async (user, task) => {
-  const response = await fetch(`/api/tasks/${task.id}`, {
+
+export const patchTask = async (user, task) => {
+  const response = await fetch("/api/tasks/patch", {
     method: "PATCH",
     headers: {
       Authorization: `bearer ${user.token}`,
@@ -31,12 +23,27 @@ export const patchTasksRoute = async (user, task) => {
 
   return response;
 };
-export const deleteTasksRoute = async (user, task) => {
-  const response = await fetch(`/api/tasks/${task.id}`, {
+
+export const deleteTask = async (user, task) => {
+  const response = await fetch(`/api/tasks/delete/${task.id}`, {
     method: "DELETE",
     headers: {
       Authorization: `bearer ${user.token}`,
     },
+  });
+
+  return response;
+};
+
+export const createTask = async (user, task) => {
+  console.log(task);
+  const response = await fetch("/api/tasks/create", {
+    method: "POST",
+    headers: {
+      Authorization: `bearer ${user.token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(task),
   });
 
   return response;

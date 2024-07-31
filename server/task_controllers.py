@@ -26,7 +26,7 @@ class TaskQueryController(Resource):
                 datetime.fromisoformat(data_items["start"]),
                 datetime.fromisoformat(data_items["end"]),
             ),
-            Task.calendar_id.in_([UUID(c.id) for c in calendars]),
+            Task.calendar_id.in_([c.id for c in calendars]),
         ).all()
         if not tasks:
             return {"error": f"tasks {error_messages[404]}"}, 404
@@ -39,18 +39,18 @@ class TaskCreateController(Resource):
     @verify_data
     def post(self, email, user_id, data_items):
         calendar = Calendar.query.filter(
-            Calendar.id == UUID(data_items["calendar_string_id"]),
+            Calendar.id == UUID(data_items["calendar_id"]),
             Calendar.user_id == user_id,
         ).first()
         if not calendar:
             return {"error": f"calendar {error_messages[404]}"}, 404
         try:
             new_task = Task(
-                calendar_id=UUID(data_items["calendar_string_id"]),
+                calendar_id=UUID(data_items["calendar_id"]),
                 title=data_items["title"],
                 description=data_items["description"],
                 date=datetime.fromisoformat(data_items["date"]),
-                status=data_items["status"],
+                status=int(data_items["status"]),
             )
             db.session.add(new_task)
             db.session.commit()
@@ -88,7 +88,7 @@ class TaskPatchController(Resource):
     @token_required
     @verify_data
     def patch(self, email, user_id, data_items):
-        task = Task.query.filter(Task.id == UUID(data_items["task_string_id"])).first()
+        task = Task.query.filter(Task.id == UUID(data_items["id"])).first()
         if not task:
             return {"error": f"task {error_messages[404]}"}, 404
         calendar = Calendar.query.filter(
@@ -111,7 +111,6 @@ class TaskPatchController(Resource):
 class TaskDeleteController(Resource):
 
     @token_required
-    @verify_data
     def delete(self, email, user_id, task_string_id):
 
         task = Task.query.filter(Task.id == UUID(task_string_id)).first()
@@ -125,9 +124,9 @@ class TaskDeleteController(Resource):
         try:
             db.session.delete(task)
             db.session.commit()
-            return {"message": success_messages[204]}, 204
+            return {"message": success_messages[202]}, 202
         except (IntegrityError, SQLAlchemyError) as e:
-            return {"error": f"error: {e}"}, 500
+            return {"error": f"{e}"}, 500
 
 
 class GuestTaskPatchDeleteController(Resource):
@@ -165,4 +164,4 @@ class GuestTaskPatchDeleteController(Resource):
             db.session.commit()
             return {"message": success_messages[204]}, 204
         except (IntegrityError, SQLAlchemyError) as e:
-            return {"error": f"error: {e}"}, 500
+            return {"error": f"{e}"}, 500

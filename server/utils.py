@@ -57,12 +57,12 @@ def verify_data(func):
     def wrapper(*args, **kwargs):
         data = request.get_json()
         if not data:
-            return {"error": error_messages[400]}, 400
+            return {"error": f"data: {error_messages[400]}"}, 400
         data_items = {}
         keys = data.keys()
         for key in keys:
-            if not data.get(key):
-                return {"error": error_messages[400]}, 400
+            if data.get(key) == None:
+                return {"error": f"{key, data[key], error_messages[400]}"}, 400
             else:
                 data_items[key] = data[key]
         return func(*args, data_items=data_items, **kwargs)
