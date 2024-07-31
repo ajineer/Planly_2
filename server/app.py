@@ -4,6 +4,7 @@ from config import app, api
 from user_controllers import (
     Signup,
     Login,
+    CheckAuth,
 )
 
 # calendar controller imports
@@ -53,6 +54,7 @@ from collaboration_controllers import (
 
 api.add_resource(Signup, "/signup")
 api.add_resource(Login, "/login")
+api.add_resource(CheckAuth, "/check_auth")
 
 api.add_resource(CalendarQueryCreateController, "/calendars")
 api.add_resource(CalendarPatchController, "/calendars/patch")

@@ -26,7 +26,7 @@ export const useLogin = () => {
         }
 
         if(response.ok){
-            localStorage.setItem('user_token', JSON.stringify(json))
+            localStorage.setItem("refresh_token", json.refresh_token)
             dispatch({type: 'LOGIN', payload: json})
             setIsLoading(false)
         }

@@ -19,7 +19,7 @@ class EventQueryController(Resource):
     def post(self, email, user_id, data_items):
         calendars = Calendar.query.filter(Calendar.user_id == user_id).all()
         if not calendars:
-            return {"error": error_messages[401]}, 401
+            return {"error": f"calendars {error_messages[404]}"}, 404
 
         events = Event.query.filter(
             Event.start.between(

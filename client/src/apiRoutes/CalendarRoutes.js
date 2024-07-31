@@ -36,10 +36,10 @@ export const createCalendar = async (user, calendar) => {
   const response = await fetch(`/api/calendars`, {
     method: "POST",
     headers: {
-      Authorization: `bearer ${user.token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(calendar),
+    credentials: "include",
   });
 
   return response;
