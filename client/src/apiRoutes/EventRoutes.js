@@ -25,7 +25,7 @@ export const patchEvent = async (user, event) => {
 };
 
 export const deleteEvent = async (user, event) => {
-  const response = await fetch(`/api/events/${event.id}`, {
+  const response = await fetch(`/api/events/delete/${event.id}`, {
     method: "DELETE",
     headers: {
       Authorization: `bearer ${user.token}`,

@@ -63,7 +63,7 @@ api.add_resource(
 api.add_resource(EventQueryController, "/events/query")
 api.add_resource(EventCreateController, "/events/create")
 api.add_resource(EventPatchController, "/events/patch")
-api.add_resource(EventDeleteController, "/event/delete/<string:event_string_id>")
+api.add_resource(EventDeleteController, "/events/delete/<string:event_string_id>")
 api.add_resource(GuestEventQueryController, "/guest_events/query")
 api.add_resource(GuestEventCreateController, "/guest_events/create")
 api.add_resource(GuestEventPatchDeleteController, "/guest_events")

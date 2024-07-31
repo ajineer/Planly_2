@@ -86,6 +86,7 @@ const EventApiTest = () => {
         <button onClick={() => handleCreateEvent()}>Create Event</button>
         <button onClick={() => handlePatchEvent()}>Patch Event</button>
         <button onClick={() => handleDeleteEvent()}>Delete Event</button>
+        {message && <div>{message}</div>}
         {error && <div>{error}</div>}
     </div>
   )

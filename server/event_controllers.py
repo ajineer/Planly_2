@@ -137,14 +137,13 @@ class EventDeleteController(Resource):
         calendar = Calendar.query.filter(
             Calendar.id == event.calendar_id,
             Calendar.user_id == user_id,
-            Calendar.user.email == email,
         ).first()
         if not calendar:
             return {"error": f"calendar {error_messages[404]}"}, 404
         try:
             db.session.delete(event)
             db.session.commit()
-            return {"message": success_messages[204]}, 204
+            return {"message": success_messages[200]}, 200
         except (IntegrityError, SQLAlchemyError) as e:
             return {"error": f"error: {e}"}, 500
 
